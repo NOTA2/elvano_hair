@@ -37,6 +37,14 @@ function NavIcon({ kind }) {
     );
   }
 
+  if (kind === "alimtalk") {
+    return (
+      <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+      </svg>
+    );
+  }
+
   if (kind === "designers") {
     return (
       <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -80,7 +88,8 @@ function getNavGroups(session) {
       items: [
         { href: "/admin/branches", label: "지점 관리", icon: "branches" },
         { href: "/admin/designers", label: "디자이너 관리", icon: "designers" },
-        { href: "/admin/templates", label: "문서 템플릿", icon: "templates" }
+        { href: "/admin/templates", label: "문서 템플릿", icon: "templates" },
+        { href: "/admin/notification-templates", label: "알림톡 템플릿", icon: "alimtalk" }
       ]
     });
   }
@@ -134,15 +143,6 @@ export default function AdminNav({ session }) {
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="admin-sidebar-note">
-          <span className="field-label">운영 포인트</span>
-          <strong>로그인 승인 기반 관리자 접근</strong>
-          <p className="muted">
-            권한이 없는 카카오 계정의 로그인 시도는 자동으로 저장되고, 통합 마스터가
-            닉네임 기준으로 승인할 수 있습니다.
-          </p>
         </div>
 
         <form action="/api/auth/logout" method="post" className="admin-sidebar-actions">

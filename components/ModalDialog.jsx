@@ -7,6 +7,7 @@ export default function ModalDialog({
   description,
   triggerLabel = "수정",
   triggerClassName = "secondary",
+  size = "default",
   children
 }) {
   const dialogRef = useRef(null);
@@ -30,7 +31,11 @@ export default function ModalDialog({
       <button type="button" className={triggerClassName} onClick={openDialog}>
         {triggerLabel}
       </button>
-      <dialog ref={dialogRef} className="modal-dialog" onClick={handleBackdropClick}>
+      <dialog
+        ref={dialogRef}
+        className={`modal-dialog ${size === "wide" ? "wide" : ""}`}
+        onClick={handleBackdropClick}
+      >
         <div className="modal-card">
           <div className="modal-head">
             <div>

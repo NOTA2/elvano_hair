@@ -62,8 +62,10 @@ supabase/
 | --- | --- |
 | `/admin/login` | 카카오 로그인 진입 |
 | `/admin` | 관리자 대시보드 |
-| `/admin/branches` | 지점/디자이너 관리 |
-| `/admin/templates` | 템플릿 관리 |
+| `/admin/branches` | 지점 관리 |
+| `/admin/designers` | 디자이너 관리 |
+| `/admin/templates` | 문서 템플릿 관리 |
+| `/admin/notification-templates` | 알림톡 템플릿 관리 |
 | `/admin/documents` | 문서 발급 및 문서 목록 |
 | `/admin/admin-users` | 권한 관리, 로그인 시도 승인 |
 
@@ -83,7 +85,8 @@ supabase/
 | --- | --- | --- |
 | `/api/admin/branches` | `POST` | 지점 생성/수정/삭제 |
 | `/api/admin/designers` | `POST` | 디자이너 생성/수정/삭제 |
-| `/api/admin/templates` | `POST` | 템플릿 생성/수정/삭제 |
+| `/api/admin/templates` | `POST` | 문서 템플릿 생성/수정/삭제 |
+| `/api/admin/notification-templates` | `POST` | 알림톡 템플릿 원격 CRUD, 검수 요청/취소, 단건 동기화 |
 | `/api/admin/documents` | `POST` | 서명 문서 발급, 선택 시 Bizgo 발송 |
 | `/api/admin/admin-users` | `POST` | 관리자 권한 부여/수정/삭제 |
 
@@ -137,7 +140,7 @@ supabase/
 
 ### 디자이너/템플릿 검증 규칙
 
-- 서버는 선택한 템플릿과 디자이너가 같은 지점에 속하는지 다시 검증한다.
+- 서버는 선택한 문서 템플릿, 알림톡 템플릿, 디자이너가 같은 지점에 속하는지 다시 검증한다.
 - 화면에서 막는 것만으로 끝내지 않고 서버에서 재검증한다.
 
 ### 문서 스냅샷 저장
@@ -169,8 +172,10 @@ supabase/
 
 ### `lib/bizgo.js`
 
-- Bizgo 알림톡 발송 payload 생성
-- 발송 실패 시 예외 발생
+- Bizgo 알림톡 템플릿 관리 API 래퍼
+- 검수 요청/취소 API 래퍼
+- 원격 단건 조회 결과를 로컬 구조로 매핑
+- 실제 발송용 payload 생성
 
 ## 현재 구조의 특징
 

@@ -9,6 +9,7 @@ import {
   createDocument,
   getBranchById,
   getDesignerById,
+  getNotificationTemplateById,
   getTemplateById,
   updateDocumentBizgo
 } from "@/lib/db";
@@ -43,14 +44,26 @@ export async function POST(request) {
 
   const branch = await getBranchById(resolvedBranchId);
   const template = await getTemplateById(Number(formData.get("template_id")));
+  const notificationTemplate = await getNotificationTemplateById(
+    Number(formData.get("notification_template_id"))
+  );
   const designer = await getDesignerById(Number(formData.get("designer_id")));
 
-  if (!branch || !template || !designer) {
+  if (!branch || !template || !notificationTemplate || !designer) {
+    return redirectBack(headerStore);
+  }
+
+  if (!template.is_active || template.deleted_at) {
+    return redirectBack(headerStore);
+  }
+
+  if (!notificationTemplate.is_active || notificationTemplate.deleted_at) {
     return redirectBack(headerStore);
   }
 
   if (
     Number(template.branch_id) !== Number(resolvedBranchId) ||
+    Number(notificationTemplate.branch_id) !== Number(resolvedBranchId) ||
     Number(designer.branch_id) !== Number(resolvedBranchId)
   ) {
     return redirectBack(headerStore);
@@ -66,6 +79,7 @@ export async function POST(request) {
     document_date: formData.get("document_date"),
     customer_name: formData.get("customer_name"),
     phone_last4: formData.get("phone_last4"),
+    recipient_phone: formData.get("recipient_phone"),
     designer_name: designer.name
   });
 
@@ -73,6 +87,7 @@ export async function POST(request) {
   const document = await createDocument({
     token,
     template_id: template.id,
+    notification_template_id: notificationTemplate.id,
     branch_id: branch.id,
     branch_name: branch.name,
     designer_id: designer.id,
@@ -82,6 +97,7 @@ export async function POST(request) {
     phone_last4: values.phone_last4,
     recipient_phone: formData.get("recipient_phone"),
     designer_name: designer.name,
+    notification_template_name: notificationTemplate.template_name,
     rendered_content: fillTemplate(template.content, {
       ...values,
       document_url: `${getBaseUrl()}/s/${token}`
@@ -90,7 +106,10 @@ export async function POST(request) {
 
   if (formData.get("send_alimtalk") === "1") {
     try {
-      const bizgoResponse = await sendBizgoAlimtalk({ template, document });
+      const bizgoResponse = await sendBizgoAlimtalk({
+        notificationTemplate,
+        document
+      });
       await updateDocumentBizgo(document.token, "sent", bizgoResponse);
     } catch (error) {
       await updateDocumentBizgo(document.token, "failed", { message: error.message });

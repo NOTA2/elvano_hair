@@ -8,7 +8,7 @@ export default async function ProtectedAdminLayout({ children }) {
 
   return (
     <main className="page-shell admin-shell">
-      <div className="admin-layout">
+      <div className="admin-layout admin-workbench">
         <aside className="admin-sidebar">
           <AdminNav session={session} />
         </aside>
@@ -18,8 +18,8 @@ export default async function ProtectedAdminLayout({ children }) {
               <div className="admin-header-eyebrow">Elvano Hair Operations</div>
               <h1 className="admin-header-title">고객 안내문 운영 센터</h1>
               <p className="admin-header-body">
-                지점별 템플릿, 디자이너, 권한, 서명 문서를 한 흐름으로 관리하는 내부
-                운영 공간입니다.
+                문서 템플릿, 알림톡 템플릿, 지점 운영, 고객 서명 문서를 한 흐름으로
+                관리하는 내부 운영 공간입니다.
               </p>
             </div>
             <div className="admin-header-meta">

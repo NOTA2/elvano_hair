@@ -7,6 +7,7 @@ import {
   listBranches,
   listDesigners,
   listDocuments,
+  listNotificationTemplates,
   listTemplates
 } from "@/lib/db";
 
@@ -20,6 +21,7 @@ export default async function AdminDashboardPage() {
   const session = await requireAdminSession();
   const branchId = isBranchMaster(session) ? session.branch_id : undefined;
   const templates = await listTemplates({ branchId });
+  const notificationTemplates = await listNotificationTemplates({ branchId });
   const documents = await listDocuments({ branchId });
   const admins = await listAdminUsers({ branchId });
   const branches = await listBranches({ branchId });
@@ -49,9 +51,14 @@ export default async function AdminDashboardPage() {
 
         <div className="admin-stats-grid">
           <div className="stat-card">
-            <span className="stat-label">템플릿</span>
+            <span className="stat-label">문서 템플릿</span>
             <div className="stat-value">{templates.length}</div>
-            <div className="stat-meta">활성 운영 문서 소스</div>
+            <div className="stat-meta">고객 안내문 원본</div>
+          </div>
+          <div className="stat-card">
+            <span className="stat-label">알림톡 템플릿</span>
+            <div className="stat-value">{notificationTemplates.length}</div>
+            <div className="stat-meta">Bizgo 발송 템플릿</div>
           </div>
           <div className="stat-card">
             <span className="stat-label">발급 문서</span>
@@ -81,69 +88,35 @@ export default async function AdminDashboardPage() {
         </div>
       </section>
 
-      <div className="admin-two-column">
-        <section className="panel">
-          <div className="panel-head">
-            <div>
-              <div className="panel-eyebrow">Operating Notes</div>
-              <h2 className="panel-title">운영 포인트</h2>
-            </div>
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <div className="panel-eyebrow">Recent Activity</div>
+            <h2 className="panel-title">최근 발급 문서</h2>
           </div>
-          <div className="mini-list">
-            <div className="mini-list-item">
-              <div className="mini-list-title">공개 링크 보호</div>
-              <div className="mini-list-copy">
-                고객은 휴대폰 뒷자리 4자리를 통과해야 문서 본문과 서명 캔버스를 볼 수
-                있습니다.
-              </div>
-            </div>
-            <div className="mini-list-item">
-              <div className="mini-list-title">권한 경계 유지</div>
-              <div className="mini-list-copy">
-                지점 마스터는 자기 지점의 지점/디자이너/템플릿/문서만 관리하고, 일반
-                어드민은 문서 발급과 조회만 수행합니다.
-              </div>
-            </div>
-            <div className="mini-list-item">
-              <div className="mini-list-title">발송 실패 처리</div>
-              <div className="mini-list-copy">
-                Bizgo 발송이 실패해도 문서 자체는 유지되며, 발송 상태만 별도로
-                기록합니다.
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="panel-head">
-            <div>
-              <div className="panel-eyebrow">Recent Activity</div>
-              <h2 className="panel-title">최근 발급 문서</h2>
-            </div>
-          </div>
-          {recentDocuments.length === 0 ? (
-            <div className="empty-state">최근 발급 문서가 없습니다.</div>
-          ) : (
-            <div className="stack-list">
-              {recentDocuments.map((document) => (
-                <div key={document.id} className="record-card compact">
-                  <div className="record-head">
-                    <div>
-                      <div className="record-title">{document.document_title}</div>
-                      <div className="record-meta">
-                        {document.branch_name} · {document.customer_name} · {document.designer_name}
-                      </div>
+        </div>
+        {recentDocuments.length === 0 ? (
+          <div className="empty-state">최근 발급 문서가 없습니다.</div>
+        ) : (
+          <div className="stack-list">
+            {recentDocuments.map((document) => (
+              <div key={document.id} className="record-card compact">
+                <div className="record-head">
+                  <div>
+                    <div className="record-title">{document.document_title}</div>
+                    <div className="record-meta">
+                      {document.branch_name} · {document.customer_name} · {document.designer_name}
                     </div>
-                    <span className={`badge ${statusClass(document.status)}`}>
-                      {document.status}
-                    </span>
                   </div>
+                  <span className={`badge ${statusClass(document.status)}`}>
+                    {document.status}
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

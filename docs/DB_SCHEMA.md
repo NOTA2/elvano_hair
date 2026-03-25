@@ -49,7 +49,7 @@
 
 ### `templates`
 
-지점별 문서 템플릿 테이블이다.
+지점별 문서 템플릿 테이블이다. 고객이 실제로 읽고 서명하는 안내문 본문 원본을 가진다.
 
 | 컬럼 | 설명 |
 | --- | --- |
@@ -58,12 +58,50 @@
 | `name` | 템플릿명 |
 | `description` | 설명 |
 | `content` | 안내문 본문 |
-| `bizgo_template_code` | Bizgo 템플릿 코드 |
-| `bizgo_sender_key` | Bizgo 발신 프로필 키 |
-| `bizgo_message` | 알림톡 메시지 본문 |
-| `bizgo_button_name` | 버튼명 |
 | `is_active` | 사용 여부 |
+| `deleted_at` | soft delete 시각 |
 | `created_at`, `updated_at` | 생성/수정 시각 |
+
+중요 메모:
+
+- 템플릿은 실제 `DELETE` 하지 않는다.
+- 운영 상태는 애플리케이션에서 `active / inactive / deleted`로 해석한다.
+- `deleted_at` 이 있으면 새 문서 발급 목록에서는 제외되지만, 과거 문서 FK는 유지된다.
+- 스키마에 남아 있는 일부 Bizgo 컬럼은 레거시 호환용이며 현재 운영 UI에서는 사용하지 않는다.
+
+### `notification_templates`
+
+Bizgo 알림톡 관리 API와 연결되는 알림톡 템플릿 카탈로그다.
+
+| 컬럼 | 설명 |
+| --- | --- |
+| `id` | PK |
+| `branch_id` | 소속 지점 FK |
+| `description` | 내부 메모 |
+| `sender_key` | Bizgo 발신 프로필 키 |
+| `sender_key_type` | 발신 키 타입 (`S`, `G`) |
+| `template_code` | 알림톡 템플릿 코드 |
+| `template_name` | 알림톡 템플릿명 |
+| `template_message_type` | 메시지 유형 (`BA`, `EX`, `AD`, `MI`) |
+| `template_emphasize_type` | 강조 유형 (`NONE`, `TEXT`, `IMAGE`, `ITEM_LIST`) |
+| `category_code` | 카테고리 코드 |
+| `security_flag` | 보안 템플릿 여부 |
+| `message` | 알림톡 본문 |
+| `title`, `subtitle`, `header` | 강조/헤더 관련 필드 |
+| `button_*` | 기본 버튼 1개 구성 필드 |
+| `inspection_status` | 검수 상태 (`REG`, `REQ`, `APR`, `REJ`) |
+| `remote_block`, `remote_dormant` | Bizgo 원격 상태 |
+| `remote_created_at`, `remote_modified_at` | Bizgo 원격 생성/수정 시각 |
+| `remote_payload` | 원격 조회 원본 JSON |
+| `last_synced_at` | 마지막 원격 동기화 시각 |
+| `is_active`, `deleted_at` | 로컬 운영 상태 |
+| `created_at`, `updated_at` | 생성/수정 시각 |
+
+중요 메모:
+
+- 공식 문서상 전체 템플릿 목록 API는 보이지 않아, 현재 앱은 로컬 카탈로그를 목록 소스로 사용한다.
+- 등록/수정/삭제/검수 요청/검수 요청 취소는 Bizgo 원격 API를 먼저 호출하고, 성공 후 로컬을 갱신한다.
+- 삭제는 원격 삭제 후 로컬 `deleted_at`을 남겨 문서 이력을 보존한다.
 
 ### `documents`
 
@@ -73,7 +111,8 @@
 | --- | --- |
 | `id` | PK |
 | `token` | 공개 링크용 unique 토큰 |
-| `template_id` | 원본 템플릿 FK |
+| `template_id` | 문서 템플릿 FK |
+| `notification_template_id` | 알림톡 템플릿 FK |
 | `branch_id` | 지점 FK |
 | `designer_id` | 디자이너 FK |
 | `branch_name` | 발급 시점의 지점명 스냅샷 |
@@ -83,6 +122,7 @@
 | `phone_last4` | 휴대폰 뒷자리 4자리 |
 | `recipient_phone` | 알림톡 수신 전체 번호 |
 | `designer_name` | 발급 시점 디자이너명 스냅샷 |
+| `notification_template_name` | 발급 시점 알림톡 템플릿명 스냅샷 |
 | `rendered_content` | 치환이 끝난 최종 문서 본문 |
 | `status` | `pending`, `signed` 등 |
 | `viewed_at` | 본인 확인 후 첫 열람 시각 |
@@ -167,12 +207,14 @@
 ```text
 branches 1 --- N designers
 branches 1 --- N templates
+branches 1 --- N notification_templates
 branches 1 --- N documents
 branches 1 --- N admin_users
 branches 1 --- N sessions
 
 designers 1 --- N documents
 templates 1 --- N documents
+notification_templates 1 --- N documents
 
 admin_users 1 --- 0..N sessions
 login_attempts 1 --- N login_attempt_logs (logical relation by kakao_user_id)
@@ -183,7 +225,7 @@ login_attempts 1 --- N login_attempt_logs (logical relation by kakao_user_id)
 DB FK만으로 표현되지 않는 규칙도 있다.
 
 1. 지점 마스터는 자기 지점의 데이터만 수정할 수 있다.
-2. 문서 생성 시 선택한 템플릿과 디자이너는 같은 지점이어야 한다.
+2. 문서 생성 시 선택한 문서 템플릿, 알림톡 템플릿, 디자이너는 같은 지점이어야 한다.
 3. `branch_master` 권한은 반드시 `branch_id`를 가져야 한다.
 4. 공개 서명 API는 휴대폰 4자리 검증 쿠키가 없으면 서명을 거부한다.
 

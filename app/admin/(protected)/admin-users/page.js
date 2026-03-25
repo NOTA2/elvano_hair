@@ -1,3 +1,4 @@
+import PaginationControls from "@/components/PaginationControls";
 import { requireIntegratedMasterSession } from "@/lib/auth";
 import { MASTER_KAKAO_ID } from "@/lib/config";
 import {
@@ -5,14 +6,18 @@ import {
   listBranches,
   listLoginAttempts
 } from "@/lib/db";
+import { paginateItems, parsePage } from "@/lib/pagination";
 import {
   ADMIN_ROLE,
   BRANCH_MASTER_ROLE,
   ROLE_LABELS
 } from "@/lib/roles";
 
-export default async function AdminUsersPage() {
+const PAGE_SIZE = 10;
+
+export default async function AdminUsersPage({ searchParams }) {
   await requireIntegratedMasterSession();
+  const resolvedSearchParams = await searchParams;
   const users = await listAdminUsers();
   const branches = await listBranches({ activeOnly: true });
   const loginAttempts = await listLoginAttempts();
@@ -24,6 +29,12 @@ export default async function AdminUsersPage() {
       !userMap.has(attempt.kakao_user_id)
   );
   const branchMasterCount = users.filter((user) => user.role === BRANCH_MASTER_ROLE).length;
+  const pendingPagination = paginateItems(
+    pendingLoginAttempts,
+    parsePage(resolvedSearchParams, "pendingPage"),
+    PAGE_SIZE
+  );
+  const usersPagination = paginateItems(users, parsePage(resolvedSearchParams, "usersPage"), PAGE_SIZE);
 
   return (
     <div className="section-stack">
@@ -47,75 +58,83 @@ export default async function AdminUsersPage() {
           통합 마스터 카카오 ID는 <span className="code">{MASTER_KAKAO_ID}</span> 로
           고정됩니다.
         </div>
-        {pendingLoginAttempts.length === 0 ? (
+        {pendingPagination.items.length === 0 ? (
           <div className="empty-state">권한 대기 중인 로그인 시도 계정이 없습니다.</div>
         ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>카카오 ID</th>
-                  <th>닉네임</th>
-                  <th>시도 횟수</th>
-                  <th>최근 상태</th>
-                  <th>권한 부여</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingLoginAttempts.map((attempt) => (
-                  <tr key={attempt.kakao_user_id}>
-                    <td>
-                      <div className="table-cell-title">{attempt.kakao_user_id}</div>
-                    </td>
-                    <td>
-                      <div className="table-cell-title">{attempt.nickname || "-"}</div>
-                    </td>
-                    <td>
-                      <div className="table-cell-title">{attempt.attempt_count}</div>
-                    </td>
-                    <td>
-                      <div className="table-cell-title">{attempt.last_status}</div>
-                      <div className="table-cell-copy">
-                        {String(attempt.last_attempt_at).slice(0, 16).replace("T", " ")}
-                      </div>
-                    </td>
-                    <td>
-                      <form action="/api/admin/admin-users" method="post">
-                        <input type="hidden" name="intent" value="create" />
-                        <input
-                          type="hidden"
-                          name="kakao_user_id"
-                          value={attempt.kakao_user_id}
-                        />
-                        <input
-                          type="hidden"
-                          name="nickname"
-                          value={attempt.nickname || ""}
-                        />
-                        <div className="inline-actions">
-                          <select name="role" defaultValue={ADMIN_ROLE}>
-                            <option value={ADMIN_ROLE}>{ROLE_LABELS[ADMIN_ROLE]}</option>
-                            <option value={BRANCH_MASTER_ROLE}>
-                              {ROLE_LABELS[BRANCH_MASTER_ROLE]}
-                            </option>
-                          </select>
-                          <select name="branch_id" defaultValue="">
-                            <option value="">선택 안 함</option>
-                            {branches.map((branch) => (
-                              <option key={branch.id} value={branch.id}>
-                                {branch.name}
-                              </option>
-                            ))}
-                          </select>
-                          <button type="submit">권한 저장</button>
-                        </div>
-                      </form>
-                    </td>
+          <>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>카카오 ID</th>
+                    <th>닉네임</th>
+                    <th>시도 횟수</th>
+                    <th>최근 상태</th>
+                    <th>권한 부여</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {pendingPagination.items.map((attempt) => (
+                    <tr key={attempt.kakao_user_id}>
+                      <td>
+                        <div className="table-cell-title">{attempt.kakao_user_id}</div>
+                      </td>
+                      <td>
+                        <div className="table-cell-title">{attempt.nickname || "-"}</div>
+                      </td>
+                      <td>
+                        <div className="table-cell-title">{attempt.attempt_count}</div>
+                      </td>
+                      <td>
+                        <div className="table-cell-title">{attempt.last_status}</div>
+                        <div className="table-cell-copy">
+                          {String(attempt.last_attempt_at).slice(0, 16).replace("T", " ")}
+                        </div>
+                      </td>
+                      <td>
+                        <form action="/api/admin/admin-users" method="post">
+                          <input type="hidden" name="intent" value="create" />
+                          <input
+                            type="hidden"
+                            name="kakao_user_id"
+                            value={attempt.kakao_user_id}
+                          />
+                          <input
+                            type="hidden"
+                            name="nickname"
+                            value={attempt.nickname || ""}
+                          />
+                          <div className="inline-actions">
+                            <select name="role" defaultValue={ADMIN_ROLE}>
+                              <option value={ADMIN_ROLE}>{ROLE_LABELS[ADMIN_ROLE]}</option>
+                              <option value={BRANCH_MASTER_ROLE}>
+                                {ROLE_LABELS[BRANCH_MASTER_ROLE]}
+                              </option>
+                            </select>
+                            <select name="branch_id" defaultValue="">
+                              <option value="">선택 안 함</option>
+                              {branches.map((branch) => (
+                                <option key={branch.id} value={branch.id}>
+                                  {branch.name}
+                                </option>
+                              ))}
+                            </select>
+                            <button type="submit">권한 저장</button>
+                          </div>
+                        </form>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <PaginationControls
+              currentPage={pendingPagination.currentPage}
+              totalPages={pendingPagination.totalPages}
+              pageParam="pendingPage"
+              searchParams={resolvedSearchParams}
+            />
+          </>
         )}
       </section>
 
@@ -126,78 +145,86 @@ export default async function AdminUsersPage() {
             <h2 className="panel-title">허용된 관리자</h2>
           </div>
         </div>
-        {users.length === 0 ? (
+        {usersPagination.items.length === 0 ? (
           <div className="empty-state">등록된 허용 관리자가 없습니다.</div>
         ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>카카오 ID</th>
-                  <th>닉네임</th>
-                  <th>권한</th>
-                  <th>지점</th>
-                  <th>메모</th>
-                  <th>수정</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <div className="table-cell-title">{user.kakao_user_id}</div>
-                    </td>
-                    <td>
-                      <div className="table-cell-title">{user.nickname || "-"}</div>
-                    </td>
-                    <td>
-                      <span className="status-chip soft">
-                        {ROLE_LABELS[user.role] || user.role}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="table-cell-title">{user.branch_name || "-"}</div>
-                    </td>
-                    <td>
-                      <div className="table-cell-copy">{user.memo || "-"}</div>
-                    </td>
-                    <td>
-                      <form action="/api/admin/admin-users" method="post">
-                        <input type="hidden" name="intent" value="create" />
-                        <input type="hidden" name="kakao_user_id" value={user.kakao_user_id} />
-                        <input type="hidden" name="nickname" value={user.nickname || ""} />
-                        <input type="hidden" name="memo" value={user.memo || ""} />
-                        <div className="inline-actions">
-                          <select name="role" defaultValue={user.role}>
-                            <option value={ADMIN_ROLE}>{ROLE_LABELS[ADMIN_ROLE]}</option>
-                            <option value={BRANCH_MASTER_ROLE}>
-                              {ROLE_LABELS[BRANCH_MASTER_ROLE]}
-                            </option>
-                          </select>
-                          <select name="branch_id" defaultValue={user.branch_id || ""}>
-                            <option value="">선택 안 함</option>
-                            {branches.map((branch) => (
-                              <option key={branch.id} value={branch.id}>
-                                {branch.name}
-                              </option>
-                            ))}
-                          </select>
-                          <button type="submit">저장</button>
-                        </div>
-                      </form>
-                      <form action="/api/admin/admin-users" method="post" style={{ marginTop: 10 }}>
-                        <input type="hidden" name="intent" value="delete" />
-                        <input type="hidden" name="id" value={user.id} />
-                        <button type="submit" className="danger">
-                          제거
-                        </button>
-                      </form>
-                    </td>
+          <>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>카카오 ID</th>
+                    <th>닉네임</th>
+                    <th>권한</th>
+                    <th>지점</th>
+                    <th>메모</th>
+                    <th>수정</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {usersPagination.items.map((user) => (
+                    <tr key={user.id}>
+                      <td>
+                        <div className="table-cell-title">{user.kakao_user_id}</div>
+                      </td>
+                      <td>
+                        <div className="table-cell-title">{user.nickname || "-"}</div>
+                      </td>
+                      <td>
+                        <span className="status-chip soft">
+                          {ROLE_LABELS[user.role] || user.role}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="table-cell-title">{user.branch_name || "-"}</div>
+                      </td>
+                      <td>
+                        <div className="table-cell-copy">{user.memo || "-"}</div>
+                      </td>
+                      <td>
+                        <form action="/api/admin/admin-users" method="post">
+                          <input type="hidden" name="intent" value="create" />
+                          <input type="hidden" name="kakao_user_id" value={user.kakao_user_id} />
+                          <input type="hidden" name="nickname" value={user.nickname || ""} />
+                          <input type="hidden" name="memo" value={user.memo || ""} />
+                          <div className="inline-actions">
+                            <select name="role" defaultValue={user.role}>
+                              <option value={ADMIN_ROLE}>{ROLE_LABELS[ADMIN_ROLE]}</option>
+                              <option value={BRANCH_MASTER_ROLE}>
+                                {ROLE_LABELS[BRANCH_MASTER_ROLE]}
+                              </option>
+                            </select>
+                            <select name="branch_id" defaultValue={user.branch_id || ""}>
+                              <option value="">선택 안 함</option>
+                              {branches.map((branch) => (
+                                <option key={branch.id} value={branch.id}>
+                                  {branch.name}
+                                </option>
+                              ))}
+                            </select>
+                            <button type="submit">저장</button>
+                          </div>
+                        </form>
+                        <form action="/api/admin/admin-users" method="post" style={{ marginTop: 10 }}>
+                          <input type="hidden" name="intent" value="delete" />
+                          <input type="hidden" name="id" value={user.id} />
+                          <button type="submit" className="danger">
+                            제거
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <PaginationControls
+              currentPage={usersPagination.currentPage}
+              totalPages={usersPagination.totalPages}
+              pageParam="usersPage"
+              searchParams={resolvedSearchParams}
+            />
+          </>
         )}
       </section>
     </div>

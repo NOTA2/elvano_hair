@@ -16,6 +16,16 @@ function redirectBack(headerStore) {
   return Response.redirect(headerStore.get("referer") || "/admin/templates", 302);
 }
 
+function resolveTemplateStatus(formData) {
+  const status = String(formData.get("status") || "");
+
+  if (status === "active" || status === "inactive" || status === "deleted") {
+    return status;
+  }
+
+  return formData.get("is_active") === "1" ? "active" : "inactive";
+}
+
 export async function POST(request) {
   const session = await getRouteSession();
   if (!session || !canManageBranchSettings(session)) {
@@ -39,11 +49,7 @@ export async function POST(request) {
       name: formData.get("name"),
       description: formData.get("description"),
       content: formData.get("content"),
-      bizgo_template_code: formData.get("bizgo_template_code"),
-      bizgo_sender_key: formData.get("bizgo_sender_key"),
-      bizgo_message: formData.get("bizgo_message"),
-      bizgo_button_name: formData.get("bizgo_button_name"),
-      is_active: formData.get("is_active") === "1"
+      status: resolveTemplateStatus(formData)
     });
   }
 
@@ -71,11 +77,7 @@ export async function POST(request) {
       name: formData.get("name"),
       description: formData.get("description"),
       content: formData.get("content"),
-      bizgo_template_code: formData.get("bizgo_template_code"),
-      bizgo_sender_key: formData.get("bizgo_sender_key"),
-      bizgo_message: formData.get("bizgo_message"),
-      bizgo_button_name: formData.get("bizgo_button_name"),
-      is_active: formData.get("is_active") === "1"
+      status: resolveTemplateStatus(formData)
     });
   }
 

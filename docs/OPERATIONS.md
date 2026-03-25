@@ -34,6 +34,7 @@
 2. `npm install`
 3. `.env.example`를 복사해 `.env.local` 작성
 4. Supabase 프로젝트 생성 후 `supabase/schema.sql` 실행
+5. 기존 DB라면 `supabase/migrations/20260325_template_soft_delete.sql` 와 `supabase/migrations/20260325_notification_templates.sql` 실행
 
 ### 실행
 
@@ -93,18 +94,19 @@ KAKAO_REDIRECT_URI=https://example.vercel.app/api/auth/kakao/callback
 
 ## Bizgo 설정
 
-템플릿별로 아래 값이 필요하다.
+알림톡 템플릿 관리와 실제 발송에는 아래가 필요하다.
 
-- Bizgo 템플릿 코드
 - 발신 프로필 키
-- 메시지 본문
-- 버튼명
+- 템플릿 코드
+- 템플릿 본문
+- 검수 상태
+- 수신 전화번호
 
 운영 전 확인 항목:
 
-1. Bizgo 템플릿이 사전 승인되었는지
+1. Bizgo 알림톡 템플릿이 승인 상태(`APR`)인지
 2. 발신 프로필 키가 유효한지
-3. 메시지 본문이 Bizgo 템플릿과 일치하는지
+3. 메시지 본문과 버튼 URL 치환값이 맞는지
 4. 버튼 링크가 운영 도메인 기준으로 열리는지
 
 ## 최초 셋업 순서
@@ -114,11 +116,13 @@ KAKAO_REDIRECT_URI=https://example.vercel.app/api/auth/kakao/callback
 3. 통합 마스터로 로그인
 4. 지점 생성
 5. 지점별 디자이너 생성
-6. 지점별 템플릿 생성
-7. 필요하면 지점 마스터/일반 어드민 권한 부여
-8. 문서 발급 테스트
-9. 공개 링크에서 본인 확인 및 서명 테스트
-10. Bizgo 발송 테스트
+6. 지점별 문서 템플릿 생성
+7. 지점별 알림톡 템플릿 생성
+8. 필요하면 검수 요청 후 승인 상태 동기화
+9. 필요하면 지점 마스터/일반 어드민 권한 부여
+10. 문서 발급 테스트
+11. 공개 링크에서 본인 확인 및 서명 테스트
+12. Bizgo 발송 테스트
 
 ## 일상 운영 절차
 
@@ -126,8 +130,9 @@ KAKAO_REDIRECT_URI=https://example.vercel.app/api/auth/kakao/callback
 
 1. 지점 생성
 2. 디자이너 등록
-3. 지점 전용 템플릿 등록
-4. 필요하면 지점 마스터 계정 지정
+3. 지점 전용 문서 템플릿 등록
+4. 지점 전용 알림톡 템플릿 등록
+5. 필요하면 지점 마스터 계정 지정
 
 ### 새 관리자 승인
 
@@ -140,7 +145,7 @@ KAKAO_REDIRECT_URI=https://example.vercel.app/api/auth/kakao/callback
 
 1. 관리자 로그인
 2. 문서 관리 진입
-3. 지점/템플릿/디자이너 선택
+3. 지점/문서 템플릿/알림톡 템플릿/디자이너 선택
 4. 고객 정보 입력
 5. 필요 시 알림톡 즉시 발송
 6. 고객이 공개 링크에서 4자리 확인 후 서명
@@ -172,9 +177,10 @@ KAKAO_REDIRECT_URI=https://example.vercel.app/api/auth/kakao/callback
 ### 알림톡이 실패할 때
 
 1. `BIZGO_API_KEY` 확인
-2. 템플릿의 Bizgo 관련 필드 확인
+2. 알림톡 템플릿의 발신키/템플릿코드/본문 확인
 3. `recipient_phone` 누락 여부 확인
-4. `documents.bizgo_response` 저장 내용 확인
+4. 알림톡 템플릿 검수 상태가 `APR`인지 확인
+5. `documents.bizgo_response` 저장 내용 확인
 
 ## 알려진 제약
 

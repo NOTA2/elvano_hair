@@ -21,19 +21,20 @@ function KakaoSymbol() {
 
 export default async function AdminLoginPage({ searchParams }) {
   const session = await getCurrentSession();
+  const resolvedSearchParams = await searchParams;
 
   if (session) {
     redirect("/admin");
   }
 
   const errorMessage =
-    searchParams?.error === "pending_approval"
+    resolvedSearchParams?.error === "pending_approval"
       ? "로그인 시도는 저장되었습니다. 통합 마스터가 계정을 확인한 뒤 권한을 추가할 수 있습니다."
       : "";
 
   return (
     <main className="login-shell admin-login-shell">
-      <div className="login-layout">
+      <div className="login-layout login-workbench">
         <div className="login-showcase hero-card">
           <div className="admin-header-eyebrow">Elvano Hair Admin</div>
           <h1 className="login-showcase-title">지점 운영과 전자서명 흐름을 하나로 묶는 관리자 화면</h1>
