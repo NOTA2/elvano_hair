@@ -1,4 +1,5 @@
 import AdminUserRoleForm from "@/components/AdminUserRoleForm";
+import AdminSectionIntro from "@/components/AdminSectionIntro";
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
@@ -163,22 +164,21 @@ export default async function AdminUsersPage({ searchParams }) {
 
   return (
     <div className="section-stack">
+      <AdminSectionIntro
+        eyebrow="Pending Approval"
+        title="로그인 시도 계정"
+        description="권한이 없는 카카오 로그인 시도 계정을 목록으로 보고, 모달에서 권한을 부여합니다."
+      />
       <section className="panel">
-        <div className="panel-head">
-          <div>
-            <div className="panel-eyebrow">Pending Approval</div>
-            <h2 className="panel-title">로그인 시도 계정</h2>
-            <p className="panel-copy">
-              권한이 없는 카카오 로그인 시도 계정을 목록으로 보고, 모달에서 권한을
-              부여합니다.
-            </p>
-          </div>
-          <div className="panel-actions">
+        <div className="panel-toolbar">
+          <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
               <span className="metric-pill">권한 대기 {pendingLoginAttempts.length}</span>
               <span className="metric-pill">허용 관리자 {allowedUsers.length}</span>
               <span className="metric-pill">지점 마스터 {branchMasterCount}</span>
             </div>
+          </div>
+          <div className="panel-actions">
             <ListQueryControls
               pageParam="pendingPage"
               pageSizeParam="pendingPageSize"
@@ -238,14 +238,18 @@ export default async function AdminUsersPage({ searchParams }) {
         )}
       </section>
 
+      <AdminSectionIntro
+        eyebrow="Allowed Admins"
+        title="허용된 관리자"
+        description="허용된 관리자 목록을 보고 모달에서 권한과 지점을 수정합니다."
+      />
       <section className="panel">
-        <div className="panel-head">
-          <div>
-            <div className="panel-eyebrow">Allowed Admins</div>
-            <h2 className="panel-title">허용된 관리자</h2>
-            <p className="panel-copy">
-              허용된 관리자 목록을 보고 모달에서 권한과 지점을 수정합니다.
-            </p>
+        <div className="panel-toolbar">
+          <div className="panel-toolbar-primary">
+            <div className="panel-kpi-row">
+              <span className="metric-pill">전체 {allowedUsers.length}</span>
+              <span className="metric-pill">지점 마스터 {branchMasterCount}</span>
+            </div>
           </div>
           <div className="panel-actions">
             <ListQueryControls

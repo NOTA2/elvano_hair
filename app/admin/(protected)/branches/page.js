@@ -1,3 +1,4 @@
+import AdminSectionIntro from "@/components/AdminSectionIntro";
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
@@ -52,21 +53,20 @@ export default async function BranchesPage({ searchParams }) {
 
   return (
     <div className="section-stack">
+      <AdminSectionIntro
+        eyebrow="Branch Control"
+        title="지점 관리"
+        description="지점은 문서, 디자이너, 지점 마스터 권한의 기준 단위입니다. 목록을 먼저 확인하고 필요할 때만 모달에서 추가 또는 수정합니다."
+      />
       <section className="panel">
-        <div className="panel-head">
-          <div>
-            <div className="panel-eyebrow">Branch Control</div>
-            <h2 className="panel-title">지점 관리</h2>
-            <p className="panel-copy">
-              지점은 문서, 디자이너, 지점 마스터 권한의 기준 단위입니다. 목록을 먼저
-              확인하고 필요할 때만 모달에서 추가 또는 수정합니다.
-            </p>
-          </div>
-          <div className="panel-actions">
+        <div className="panel-toolbar">
+          <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
               <span className="metric-pill">지점 {branches.length}</span>
               <span className="metric-pill">활성 {activeBranches}</span>
             </div>
+          </div>
+          <div className="panel-actions">
             <ListQueryControls
               currentPageSize={pageSize}
               currentSort={sortKey}
@@ -110,7 +110,6 @@ export default async function BranchesPage({ searchParams }) {
             ) : null}
           </div>
         </div>
-
         {!canCreateBranch ? (
           <div className="empty-state" style={{ marginBottom: 18 }}>
             지점 마스터는 본인 지점의 정보만 수정할 수 있습니다.

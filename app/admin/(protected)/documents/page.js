@@ -1,4 +1,5 @@
 import AdminDocumentIssueForm from "@/components/AdminDocumentIssueForm";
+import AdminSectionIntro from "@/components/AdminSectionIntro";
 import DocumentsListControls from "@/components/DocumentsListControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
@@ -118,23 +119,22 @@ export default async function AdminDocumentsPage({ searchParams }) {
 
   return (
     <div className="section-stack">
+      <AdminSectionIntro
+        eyebrow="Issued Documents"
+        title="발급된 문서 목록"
+        description="최근에 생성된 순서대로 표시합니다. 새 문서 발급은 추가 버튼을 눌러 모달에서 진행합니다."
+      />
       <section className="panel">
-        <div className="panel-head">
-          <div>
-            <div className="panel-eyebrow">Issued Documents</div>
-            <h2 className="panel-title">발급된 문서 목록</h2>
-            <p className="panel-copy">
-              최근에 생성된 순서대로 표시합니다. 새 문서 발급은 추가 버튼을 눌러 모달에서
-              진행합니다.
-            </p>
-          </div>
-          <div className="panel-actions">
+        <div className="panel-toolbar">
+          <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
               <span className="metric-pill">전체 {documents.length}</span>
               <span className="metric-pill">완료 {signedCount}</span>
               <span className="metric-pill">대기 {pendingCount}</span>
               {failedCount > 0 ? <span className="metric-pill">실패 {failedCount}</span> : null}
             </div>
+          </div>
+          <div className="panel-actions">
             <DocumentsListControls
               currentBranchId={branchId ? String(branchId) : ""}
               branchOptions={allBranches}
@@ -163,7 +163,6 @@ export default async function AdminDocumentsPage({ searchParams }) {
             </ModalDialog>
           </div>
         </div>
-
         {pagination.items.length === 0 ? (
           <div className="empty-state">발급된 문서가 없습니다.</div>
         ) : (

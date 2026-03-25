@@ -12,6 +12,25 @@ function getInitials(value) {
   return String(value || "?").trim().slice(0, 2).toUpperCase();
 }
 
+function formatBranchName(branchName) {
+  if (!branchName) {
+    return "";
+  }
+
+  return String(branchName).endsWith("점") ? String(branchName) : `${branchName}점`;
+}
+
+function profileRoleText(session) {
+  const roleLabel = ROLE_LABELS[session.role] || "어드민";
+
+  if (session.role === INTEGRATED_MASTER_ROLE) {
+    return roleLabel;
+  }
+
+  const branchLabel = formatBranchName(session.branch_name);
+  return branchLabel ? `${roleLabel} · ${branchLabel}` : roleLabel;
+}
+
 function NavIcon({ kind }) {
   if (kind === "dashboard") {
     return (
@@ -110,7 +129,6 @@ function getNavGroups(session) {
 export default function AdminNav({ session }) {
   const pathname = usePathname();
   const navGroups = getNavGroups(session);
-  const roleLabel = ROLE_LABELS[session.role] || "어드민";
   const identity = session.nickname || session.kakao_user_id;
 
   return (
@@ -121,10 +139,7 @@ export default function AdminNav({ session }) {
           <div className="admin-profile-copy">
             <div className="admin-brand-line">Elvano Admin</div>
             <h2 className="admin-profile-name">{identity}</h2>
-            <p className="muted">
-              {roleLabel}
-              {session.branch_name ? ` · ${session.branch_name}` : ""}
-            </p>
+            <p className="admin-profile-role">{profileRoleText(session)}</p>
           </div>
         </div>
 
