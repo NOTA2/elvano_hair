@@ -1,0 +1,32 @@
+.simple-editor-wrapper {
+  --tt-toolbar-height: 44px;
+  --tt-theme-text: var(--tt-gray-light-900);
+  font-family: "DM Sans", sans-serif;
+  color: var(--tt-theme-text);
+  width: 100%;
+  min-height: 420px;
+  border: 1px solid var(--tt-border-color);
+  border-radius: 1rem;
+  background: var(--tt-bg-color);
+  overflow: hidden;
+}
+
+.simple-editor-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.simple-editor-content .tiptap.ProseMirror.simple-editor {
+  flex: 1;
+  min-height: 320px;
+  padding: 1.5rem 1.5rem 10rem;
+}
+
+@media screen and (max-width: 480px) {
+  .simple-editor-content .tiptap.ProseMirror.simple-editor {
+    padding: 1rem 1rem 8rem;
+  }
+}

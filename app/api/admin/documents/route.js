@@ -14,6 +14,7 @@ import {
   updateDocumentBizgo
 } from "@/lib/db";
 import { buildDocumentValues, createDocumentToken, fillTemplate } from "@/lib/documents";
+import { normalizeTemplateContent, toHtmlTemplateValues } from "@/lib/templateContent";
 
 function redirectBack(headerStore) {
   return Response.redirect(headerStore.get("referer") || "/admin/documents", 302);
@@ -69,8 +70,11 @@ export async function POST(request) {
     return redirectBack(headerStore);
   }
 
+  const issuedAt = new Date();
   const values = buildDocumentValues({
+    issued_at: issuedAt,
     branch_name: branch.name,
+    branch_phone: branch.phone,
     document_title: formData.get("document_title"),
     document_date: formData.get("document_date"),
     customer_name: formData.get("customer_name"),
@@ -94,17 +98,26 @@ export async function POST(request) {
     recipient_phone: formData.get("recipient_phone"),
     designer_name: designer.name,
     notification_template_name: notificationTemplate.template_name,
-    rendered_content: fillTemplate(template.content, {
-      ...values,
-      document_url: `${getBaseUrl()}/s/${token}`
-    })
+    rendered_content: normalizeTemplateContent(
+      fillTemplate(
+        template.content,
+        toHtmlTemplateValues({
+          ...values,
+          document_url: `${getBaseUrl()}/s/${token}`
+        })
+      )
+    )
   });
 
   if (formData.get("send_alimtalk") === "1") {
     try {
       const bizgoResponse = await sendBizgoAlimtalk({
         notificationTemplate,
-        document
+        document: {
+          ...document,
+          branch_phone: branch.phone || "",
+          limit_date: values.limit_date
+        }
       });
       await updateDocumentBizgo(document.token, "sent", bizgoResponse);
     } catch (error) {

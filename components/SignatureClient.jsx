@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { normalizeTemplateContent } from "@/lib/templateContent";
 
 function resizeCanvas(canvas) {
   const ratio = window.devicePixelRatio || 1;
@@ -200,7 +201,12 @@ export default function SignatureClient({
           </div>
         </div>
 
-        <div className="doc-content">{documentData.rendered_content}</div>
+        <div
+          className="doc-content"
+          dangerouslySetInnerHTML={{
+            __html: normalizeTemplateContent(documentData.rendered_content)
+          }}
+        />
 
         <div className="doc-consent">
           담당자로부터 위 내용에 대하여 충분히 설명을 들었으며, 위 내용에 동의합니다.

@@ -1,6 +1,7 @@
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
+import RichTextEditor from "@/components/RichTextEditor";
 import SelectField from "@/components/SelectField";
 import { requireBranchManagerSession } from "@/lib/auth";
 import { listTemplates } from "@/lib/db";
@@ -107,7 +108,7 @@ export default async function AdminTemplatesPage({ searchParams }) {
                   </label>
                   <label className="field-full">
                     <span className="field-label">안내문 본문</span>
-                    <textarea name="content" required />
+                    <RichTextEditor name="content" />
                   </label>
                   <label className="field">
                     <span className="field-label">상태</span>
@@ -165,7 +166,7 @@ export default async function AdminTemplatesPage({ searchParams }) {
                           </label>
                           <label className="field-full">
                             <span className="field-label">본문</span>
-                            <textarea name="content" defaultValue={template.content} required />
+                            <RichTextEditor name="content" defaultValue={template.content} />
                           </label>
                           <label className="field">
                             <span className="field-label">상태</span>

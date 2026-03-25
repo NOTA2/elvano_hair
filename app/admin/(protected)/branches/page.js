@@ -87,6 +87,10 @@ export default async function BranchesPage({ searchParams }) {
                       <input name="name" required />
                     </label>
                     <label className="field">
+                      <span className="field-label">지점 전화번호</span>
+                      <input name="phone" placeholder="0311234567" required />
+                    </label>
+                    <label className="field">
                       <span className="field-label">사용 여부</span>
                       <SelectField name="is_active" defaultValue="1">
                         <option value="1">사용</option>
@@ -122,7 +126,9 @@ export default async function BranchesPage({ searchParams }) {
                 <div key={branch.id} className="list-row-card">
                   <div className="list-row-copy">
                     <div className="list-row-title">{branch.name}</div>
-                    <div className="list-row-meta">{branch.description || "설명 없음"}</div>
+                    <div className="list-row-meta">
+                      {branch.phone || "전화번호 없음"} · {branch.description || "설명 없음"}
+                    </div>
                   </div>
                   <div className="list-row-actions">
                     <span className={`status-chip ${branch.is_active ? "positive" : "neutral"}`}>
@@ -140,6 +146,15 @@ export default async function BranchesPage({ searchParams }) {
                           <label className="field">
                             <span className="field-label">지점명</span>
                             <input name="name" defaultValue={branch.name} required />
+                          </label>
+                          <label className="field">
+                            <span className="field-label">지점 전화번호</span>
+                            <input
+                              name="phone"
+                              defaultValue={branch.phone || ""}
+                              placeholder="0311234567"
+                              required
+                            />
                           </label>
                           <label className="field">
                             <span className="field-label">사용 여부</span>

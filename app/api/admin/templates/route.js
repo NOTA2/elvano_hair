@@ -10,6 +10,7 @@ import {
   getTemplateById,
   updateTemplate
 } from "@/lib/db";
+import { normalizeTemplateContent, sanitizeTemplateContent } from "@/lib/templateContent";
 
 function redirectBack(headerStore) {
   return Response.redirect(headerStore.get("referer") || "/admin/templates", 302);
@@ -33,13 +34,16 @@ export async function POST(request) {
   const headerStore = await headers();
   const formData = await request.formData();
   const intent = formData.get("intent");
+  const normalizedContent = normalizeTemplateContent(
+    sanitizeTemplateContent(formData.get("content"))
+  );
 
   if (intent === "create") {
     await createTemplate({
       branch_id: null,
       name: formData.get("name"),
       description: formData.get("description"),
-      content: formData.get("content"),
+      content: normalizedContent,
       status: resolveTemplateStatus(formData)
     });
   }
@@ -55,7 +59,7 @@ export async function POST(request) {
       branch_id: null,
       name: formData.get("name"),
       description: formData.get("description"),
-      content: formData.get("content"),
+      content: normalizedContent,
       status: resolveTemplateStatus(formData)
     });
   }

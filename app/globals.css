@@ -305,8 +305,91 @@ textarea {
   font-weight: 700;
 }
 
+.rich-text-field {
+  display: grid;
+  gap: 12px;
+}
+
+.rich-text-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rich-text-tool {
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 12px;
+}
+
+.rich-text-tool.active {
+  background: #dcecff;
+  color: #11345c;
+  border-color: #c5daf4;
+}
+
+.rich-text-editor-shell {
+  border: 1px solid #d7cfbf;
+  border-radius: 18px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.rich-text-editor-shell:focus-within {
+  border-color: rgba(21, 157, 144, 0.38);
+  box-shadow: 0 0 0 4px rgba(21, 157, 144, 0.12);
+}
+
+.rich-text-editor .tiptap,
+.rich-text-editor .ProseMirror {
+  min-height: 320px;
+  padding: 16px 18px;
+  line-height: 1.75;
+  outline: none;
+}
+
+.rich-text-editor .tiptap p,
+.rich-text-editor .tiptap ul,
+.rich-text-editor .tiptap ol,
+.rich-text-editor .tiptap h2,
+.rich-text-editor .ProseMirror p,
+.rich-text-editor .ProseMirror ul,
+.rich-text-editor .ProseMirror ol,
+.rich-text-editor .ProseMirror h2 {
+  margin: 0 0 1em;
+}
+
+.rich-text-editor .tiptap h2,
+.rich-text-editor .ProseMirror h2 {
+  font-size: 1.35em;
+  line-height: 1.35;
+}
+
+.rich-text-editor .tiptap ul,
+.rich-text-editor .tiptap ol,
+.rich-text-editor .ProseMirror ul,
+.rich-text-editor .ProseMirror ol {
+  padding-left: 1.4em;
+}
+
+.rich-text-editor .tiptap hr,
+.rich-text-editor .ProseMirror hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 1.25em 0;
+}
+
+.rich-text-editor .tiptap p.is-editor-empty:first-child::before,
+.rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
 .button,
-button {
+button:not(.tiptap-button) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -320,13 +403,13 @@ button {
 }
 
 .button.secondary,
-button.secondary {
+button.secondary:not(.tiptap-button) {
   background: #f7f7f7;
   color: var(--ink);
 }
 
 .button.danger,
-button.danger {
+button.danger:not(.tiptap-button) {
   background: #f5e2e1;
   color: var(--danger);
 }
@@ -1127,9 +1210,9 @@ td {
 }
 
 .admin-shell .button,
-.admin-shell button,
+.admin-shell button:not(.tiptap-button),
 .admin-login-shell .button,
-.admin-login-shell button {
+.admin-login-shell button:not(.tiptap-button) {
   min-height: 46px;
   padding: 12px 18px;
   border-radius: 16px;
@@ -1139,9 +1222,9 @@ td {
 }
 
 .admin-shell .button.secondary,
-.admin-shell button.secondary,
+.admin-shell button.secondary:not(.tiptap-button),
 .admin-login-shell .button.secondary,
-.admin-login-shell button.secondary {
+.admin-login-shell button.secondary:not(.tiptap-button) {
   color: var(--admin-ink);
   background: #f8f8f8;
   border: 1px solid var(--admin-line);
@@ -1149,9 +1232,9 @@ td {
 }
 
 .admin-shell .button.danger,
-.admin-shell button.danger,
+.admin-shell button.danger:not(.tiptap-button),
 .admin-login-shell .button.danger,
-.admin-login-shell button.danger {
+.admin-login-shell button.danger:not(.tiptap-button) {
   color: #b34141;
   background: rgba(222, 89, 89, 0.1);
   border: 1px solid rgba(222, 89, 89, 0.18);
@@ -1159,9 +1242,9 @@ td {
 }
 
 .admin-shell .button:hover,
-.admin-shell button:hover,
+.admin-shell button:not(.tiptap-button):hover,
 .admin-login-shell .button:hover,
-.admin-login-shell button:hover {
+.admin-login-shell button:not(.tiptap-button):hover {
   filter: brightness(0.98);
 }
 
@@ -1419,6 +1502,15 @@ td {
   background: transparent;
 }
 
+.admin-login-shell .login-card-standalone {
+  width: min(460px, calc(100vw - 24px));
+  margin: 0 auto;
+  border: 1px solid var(--admin-line);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--admin-shadow);
+}
+
 .login-card-title {
   margin: 12px 0 10px;
   font-size: 34px;
@@ -1443,6 +1535,25 @@ td {
 .home-shell {
   padding: 18px;
   background: linear-gradient(180deg, #efebe8 0%, #e8e3de 100%);
+}
+
+.home-minimal-shell {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.home-minimal-card {
+  width: min(360px, 100%);
+  display: grid;
+  gap: 22px;
+  justify-items: center;
+  padding: 34px 28px;
+  text-align: center;
+}
+
+.home-minimal-button {
+  min-width: 180px;
 }
 
 .home-workbench {
@@ -1696,9 +1807,32 @@ td {
   background: white;
   border: 1px solid var(--line);
   border-radius: 22px;
-  white-space: pre-wrap;
   line-height: 1.85;
   font-size: clamp(18px, 3vw, 28px);
+}
+
+.doc-content p,
+.doc-content ul,
+.doc-content ol,
+.doc-content h2 {
+  margin: 0 0 1em;
+}
+
+.doc-content h2,
+.doc-content h3 {
+  font-size: 1.18em;
+  line-height: 1.4;
+}
+
+.doc-content ul,
+.doc-content ol {
+  padding-left: 1.35em;
+}
+
+.doc-content hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 1.25em 0;
 }
 
 .doc-notice {

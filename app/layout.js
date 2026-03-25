@@ -1,3 +1,5 @@
+import "../styles/_variables.scss";
+import "../styles/_keyframe-animations.scss";
 import "./globals.css";
 import { APP_NAME } from "@/lib/config";
 
