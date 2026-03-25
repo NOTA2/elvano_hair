@@ -1206,22 +1206,50 @@ td {
   color: var(--admin-muted);
 }
 
+.admin-shell button.select-field-trigger,
+.admin-login-shell button.select-field-trigger {
+  min-height: 50px;
+  padding: 14px 46px 14px 16px;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  color: var(--admin-ink);
+  box-shadow: none;
+}
+
+.admin-shell button.select-field-option,
+.admin-login-shell button.select-field-option {
+  min-height: 54px;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid rgba(17, 26, 50, 0.08);
+  border-radius: 0;
+  background: transparent;
+  color: var(--admin-ink);
+  box-shadow: none;
+}
+
+.admin-shell button.select-field-option:last-child,
+.admin-login-shell button.select-field-option:last-child {
+  border-bottom: 0;
+}
+
+.admin-shell button.select-field-option:hover,
+.admin-login-shell button.select-field-option:hover {
+  background: #eef4fa;
+}
+
+.admin-shell button.select-field-option.selected,
+.admin-login-shell button.select-field-option.selected {
+  background: #dcecff;
+  color: #11345c;
+}
+
 .admin-shell .select-field-popover,
 .admin-login-shell .select-field-popover {
   border-color: var(--admin-line-strong);
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 24px 48px rgba(15, 23, 42, 0.12);
-}
-
-.admin-shell .select-field-option:hover,
-.admin-login-shell .select-field-option:hover {
-  background: #eef4fa;
-}
-
-.admin-shell .select-field-option.selected,
-.admin-login-shell .select-field-option.selected {
-  background: #dcecff;
-  color: #11345c;
 }
 
 .admin-shell .inline-actions {
