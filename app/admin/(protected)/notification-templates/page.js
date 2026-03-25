@@ -1,3 +1,4 @@
+import AdminSectionIntro from "@/components/AdminSectionIntro";
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
@@ -191,27 +192,22 @@ export default async function NotificationTemplatesPage({ searchParams }) {
 
   return (
     <div className="section-stack">
+      <AdminSectionIntro
+        eyebrow="Bizgo Guide"
+        title="알림톡 치환값 안내"
+        description="Bizgo 콘솔에서 알림톡 템플릿을 직접 등록한 뒤, 이 화면에서는 템플릿 코드만 연결합니다. 버튼 URL의 문서 링크는 프로토콜이 빠진 값으로 치환됩니다."
+        actions={
+          <a
+            className="button secondary"
+            href={BIZGO_TEMPLATE_CONSOLE_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Bizgo 콘솔 열기
+          </a>
+        }
+      />
       <section className="panel">
-        <div className="panel-head">
-          <div>
-            <div className="panel-eyebrow">Bizgo Guide</div>
-            <h2 className="panel-title">알림톡 치환값 안내</h2>
-            <p className="panel-copy">
-              Bizgo 콘솔에서 알림톡 템플릿을 직접 등록한 뒤, 이 화면에서는 템플릿 코드만
-              연결합니다. 버튼 URL의 문서 링크는 프로토콜이 빠진 값으로 치환됩니다.
-            </p>
-          </div>
-          <div className="panel-actions">
-            <a
-              className="button secondary"
-              href={BIZGO_TEMPLATE_CONSOLE_URL}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Bizgo 콘솔 열기
-            </a>
-          </div>
-        </div>
         <TemplateVariableGuide
           title="알림톡 템플릿 치환값 안내"
           description="지점명/문서제목/고객명 같은 값을 한글 의미와 영문 변수명으로 함께 안내합니다."
@@ -226,18 +222,14 @@ export default async function NotificationTemplatesPage({ searchParams }) {
           </div>
         </div>
       </section>
+      <AdminSectionIntro
+        eyebrow="Alimtalk Template Center"
+        title="알림톡 템플릿 관리"
+        description="알림톡 템플릿은 Bizgo 콘솔에서 직접 등록하고, 여기서는 템플릿 코드를 공용 목록에 연결해 사용합니다. 저장 시 템플릿 조회 API로 원격 정보를 확인해 로컬 목록에 동기화합니다."
+      />
       <section className="panel">
-        <div className="panel-head">
-          <div>
-            <div className="panel-eyebrow">Alimtalk Template Center</div>
-            <h2 className="panel-title">알림톡 템플릿 관리</h2>
-            <p className="panel-copy">
-              알림톡 템플릿은 Bizgo 콘솔에서 직접 등록하고, 여기서는 템플릿 코드를
-              공용 목록에 연결해 사용합니다. 저장 시 템플릿 조회 API로 원격 정보를 확인해
-              로컬 목록에 동기화합니다.
-            </p>
-          </div>
-          <div className="panel-actions">
+        <div className="panel-toolbar">
+          <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
               <span className="metric-pill">전체 {templates.length}</span>
               <span className="metric-pill">사용 {activeCount}</span>
@@ -245,6 +237,8 @@ export default async function NotificationTemplatesPage({ searchParams }) {
               <span className="metric-pill">검수 요청 {requestedCount}</span>
               <span className="metric-pill">삭제 {deletedCount}</span>
             </div>
+          </div>
+          <div className="panel-actions">
             <ListQueryControls
               currentPageSize={pageSize}
               currentSort={sortKey}

@@ -1,3 +1,4 @@
+import AdminSectionIntro from "@/components/AdminSectionIntro";
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
@@ -83,21 +84,20 @@ export default async function DesignersPage({ searchParams }) {
 
   return (
     <div className="section-stack">
+      <AdminSectionIntro
+        eyebrow="Designer Setup"
+        title="디자이너 관리"
+        description="문서 발급 시 선택할 담당자를 지점별로 등록합니다. 목록을 기본으로 보여주고, 추가와 수정은 모두 모달에서 처리합니다."
+      />
       <section className="panel">
-        <div className="panel-head">
-          <div>
-            <div className="panel-eyebrow">Designer Setup</div>
-            <h2 className="panel-title">디자이너 관리</h2>
-            <p className="panel-copy">
-              문서 발급 시 선택할 담당자를 지점별로 등록합니다. 목록을 기본으로 보여주고,
-              추가와 수정은 모두 모달에서 처리합니다.
-            </p>
-          </div>
-          <div className="panel-actions">
+        <div className="panel-toolbar">
+          <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
               <span className="metric-pill">전체 {designers.length}</span>
               <span className="metric-pill">활성 {activeDesigners}</span>
             </div>
+          </div>
+          <div className="panel-actions">
             <ListQueryControls
               currentPageSize={pageSize}
               currentSort={sortKey}
@@ -133,8 +133,8 @@ export default async function DesignersPage({ searchParams }) {
                   <button type="submit">디자이너 저장</button>
                 </div>
               </form>
-            </ModalDialog>
-          </div>
+              </ModalDialog>
+            </div>
         </div>
 
         {pagination.items.length === 0 ? (

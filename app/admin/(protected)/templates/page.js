@@ -1,3 +1,4 @@
+import AdminSectionIntro from "@/components/AdminSectionIntro";
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
@@ -68,23 +69,22 @@ export default async function AdminTemplatesPage({ searchParams }) {
 
   return (
     <div className="section-stack">
+      <AdminSectionIntro
+        eyebrow="Document Template Studio"
+        title="문서 템플릿 관리"
+        description="등록된 문서 템플릿 목록을 먼저 보고, 추가와 수정은 모달에서 처리합니다. 안내문 본문은 고객 문서 발급 시 치환값으로 완성됩니다."
+      />
       <section className="panel">
-        <div className="panel-head">
-          <div>
-            <div className="panel-eyebrow">Document Template Studio</div>
-            <h2 className="panel-title">문서 템플릿 관리</h2>
-            <p className="panel-copy">
-              등록된 문서 템플릿 목록을 먼저 보고, 추가와 수정은 모달에서 처리합니다.
-              안내문 본문은 고객 문서 발급 시 치환값으로 완성됩니다.
-            </p>
-          </div>
-          <div className="panel-actions">
+        <div className="panel-toolbar">
+          <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
               <span className="metric-pill">전체 {templates.length}</span>
               <span className="metric-pill">활성 {activeCount}</span>
               <span className="metric-pill">중지 {inactiveCount}</span>
               <span className="metric-pill">삭제 {deletedCount}</span>
             </div>
+          </div>
+          <div className="panel-actions">
             <ListQueryControls
               currentPageSize={pageSize}
               currentSort={sortKey}
@@ -127,7 +127,6 @@ export default async function AdminTemplatesPage({ searchParams }) {
             </ModalDialog>
           </div>
         </div>
-
         {pagination.items.length === 0 ? (
           <div className="empty-state">등록된 템플릿이 없습니다.</div>
         ) : (
