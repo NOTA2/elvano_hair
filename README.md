@@ -2,6 +2,16 @@
 
 엘바노헤어 고객 안내문 전자서명 MVP입니다.
 
+## 문서 인덱스
+
+레포만 보고도 바로 이어서 작업할 수 있도록 상세 문서를 분리해 두었습니다.
+
+- [문서 인덱스](docs/README.md)
+- [앱 구조](docs/APP_STRUCTURE.md)
+- [도메인 규칙](docs/DOMAIN_RULES.md)
+- [DB 구조](docs/DB_SCHEMA.md)
+- [운영 가이드](docs/OPERATIONS.md)
+
 ## 포함 기능
 
 - Supabase Postgres 기반 데이터 저장
