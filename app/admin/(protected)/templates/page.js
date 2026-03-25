@@ -1,12 +1,28 @@
+import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
+import SelectField from "@/components/SelectField";
 import TemplateVariableGuide from "@/components/TemplateVariableGuide";
 import { requireBranchManagerSession } from "@/lib/auth";
 import { listBranches, listTemplates } from "@/lib/db";
-import { paginateItems, parsePage } from "@/lib/pagination";
+import {
+  paginateItems,
+  parseDirection,
+  parsePage,
+  parsePageSize,
+  parseSort,
+  sortItems
+} from "@/lib/pagination";
 import { BRANCH_MASTER_ROLE } from "@/lib/roles";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+const SORT_OPTIONS = [
+  { value: "updated_at", label: "최근 수정일" },
+  { value: "name", label: "템플릿명" },
+  { value: "branch_name", label: "지점" },
+  { value: "status", label: "상태" }
+];
 
 function branchField(session, branches, defaultBranchId) {
   if (session.role === BRANCH_MASTER_ROLE) {
@@ -24,14 +40,14 @@ function branchField(session, branches, defaultBranchId) {
   return (
     <label className="field">
       <span className="field-label">지점</span>
-      <select name="branch_id" defaultValue={defaultBranchId || ""} required>
+      <SelectField name="branch_id" defaultValue={defaultBranchId || ""} required>
         <option value="">선택</option>
         {branches.map((branch) => (
           <option key={branch.id} value={branch.id}>
             {branch.name}
           </option>
         ))}
-      </select>
+      </SelectField>
     </label>
   );
 }
@@ -61,7 +77,25 @@ export default async function AdminTemplatesPage({ searchParams }) {
   const activeCount = templates.filter((template) => template.status === "active").length;
   const inactiveCount = templates.filter((template) => template.status === "inactive").length;
   const deletedCount = templates.filter((template) => template.status === "deleted").length;
-  const pagination = paginateItems(templates, parsePage(resolvedSearchParams), PAGE_SIZE);
+  const pageSize = parsePageSize(
+    resolvedSearchParams,
+    "pageSize",
+    PAGE_SIZE_OPTIONS,
+    DEFAULT_PAGE_SIZE
+  );
+  const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
+  const direction = parseDirection(resolvedSearchParams, "direction", "desc");
+  const sortedTemplates = sortItems(templates, sortKey, direction, {
+    updated_at: (template) => template.updated_at,
+    name: (template) => template.name,
+    branch_name: (template) => template.branch_name,
+    status: (template) => template.status
+  });
+  const pagination = paginateItems(
+    sortedTemplates,
+    parsePage(resolvedSearchParams),
+    pageSize
+  );
 
   return (
     <div className="section-stack">
@@ -82,6 +116,12 @@ export default async function AdminTemplatesPage({ searchParams }) {
               <span className="metric-pill">중지 {inactiveCount}</span>
               <span className="metric-pill">삭제 {deletedCount}</span>
             </div>
+            <ListQueryControls
+              currentPageSize={pageSize}
+              currentSort={sortKey}
+              currentDirection={direction}
+              sortOptions={SORT_OPTIONS}
+            />
             <ModalDialog
               title="문서 템플릿 추가"
               description="새 안내문 템플릿을 등록합니다. 본문은 문서 발급 시 실제 고객 데이터로 치환됩니다."
@@ -107,10 +147,10 @@ export default async function AdminTemplatesPage({ searchParams }) {
                   </label>
                   <label className="field">
                     <span className="field-label">상태</span>
-                    <select name="status" defaultValue="active">
+                    <SelectField name="status" defaultValue="active">
                       <option value="active">사용</option>
                       <option value="inactive">중지</option>
-                    </select>
+                    </SelectField>
                   </label>
                 </div>
                 <div className="form-actions admin-form-actions">
@@ -167,11 +207,11 @@ export default async function AdminTemplatesPage({ searchParams }) {
                           </label>
                           <label className="field">
                             <span className="field-label">상태</span>
-                            <select name="status" defaultValue={template.status}>
+                            <SelectField name="status" defaultValue={template.status}>
                               <option value="active">사용</option>
                               <option value="inactive">중지</option>
                               <option value="deleted">삭제</option>
-                            </select>
+                            </SelectField>
                           </label>
                         </div>
                         <div className="form-actions admin-form-actions">

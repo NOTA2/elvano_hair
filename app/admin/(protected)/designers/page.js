@@ -1,14 +1,30 @@
+import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
+import SelectField from "@/components/SelectField";
 import { requireBranchManagerSession } from "@/lib/auth";
 import {
   listBranches,
   listDesigners
 } from "@/lib/db";
-import { paginateItems, parsePage } from "@/lib/pagination";
+import {
+  paginateItems,
+  parseDirection,
+  parsePage,
+  parsePageSize,
+  parseSort,
+  sortItems
+} from "@/lib/pagination";
 import { BRANCH_MASTER_ROLE } from "@/lib/roles";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+const SORT_OPTIONS = [
+  { value: "updated_at", label: "최근 수정일" },
+  { value: "name", label: "디자이너명" },
+  { value: "branch_name", label: "지점" },
+  { value: "is_active", label: "사용 여부" }
+];
 
 function branchField(session, branches, defaultBranchId) {
   if (session.role === BRANCH_MASTER_ROLE) {
@@ -26,14 +42,14 @@ function branchField(session, branches, defaultBranchId) {
   return (
     <label className="field">
       <span className="field-label">지점</span>
-      <select name="branch_id" defaultValue={defaultBranchId || ""} required>
+      <SelectField name="branch_id" defaultValue={defaultBranchId || ""} required>
         <option value="">선택</option>
         {branches.map((branch) => (
           <option key={branch.id} value={branch.id}>
             {branch.name}
           </option>
         ))}
-      </select>
+      </SelectField>
     </label>
   );
 }
@@ -45,7 +61,25 @@ export default async function DesignersPage({ searchParams }) {
   const branches = await listBranches({ activeOnly: true, branchId });
   const designers = await listDesigners({ branchId });
   const activeDesigners = designers.filter((designer) => designer.is_active).length;
-  const pagination = paginateItems(designers, parsePage(resolvedSearchParams), PAGE_SIZE);
+  const pageSize = parsePageSize(
+    resolvedSearchParams,
+    "pageSize",
+    PAGE_SIZE_OPTIONS,
+    DEFAULT_PAGE_SIZE
+  );
+  const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
+  const direction = parseDirection(resolvedSearchParams, "direction", "desc");
+  const sortedDesigners = sortItems(designers, sortKey, direction, {
+    updated_at: (designer) => designer.updated_at,
+    name: (designer) => designer.name,
+    branch_name: (designer) => designer.branch_name,
+    is_active: (designer) => designer.is_active
+  });
+  const pagination = paginateItems(
+    sortedDesigners,
+    parsePage(resolvedSearchParams),
+    pageSize
+  );
 
   return (
     <div className="section-stack">
@@ -64,6 +98,12 @@ export default async function DesignersPage({ searchParams }) {
               <span className="metric-pill">전체 {designers.length}</span>
               <span className="metric-pill">활성 {activeDesigners}</span>
             </div>
+            <ListQueryControls
+              currentPageSize={pageSize}
+              currentSort={sortKey}
+              currentDirection={direction}
+              sortOptions={SORT_OPTIONS}
+            />
             <ModalDialog
               title="디자이너 추가"
               description="새 디자이너를 등록하면 문서 발급 시 담당 디자이너로 선택할 수 있습니다."
@@ -79,10 +119,10 @@ export default async function DesignersPage({ searchParams }) {
                   </label>
                   <label className="field">
                     <span className="field-label">사용 여부</span>
-                    <select name="is_active" defaultValue="1">
+                    <SelectField name="is_active" defaultValue="1">
                       <option value="1">사용</option>
                       <option value="0">중지</option>
-                    </select>
+                    </SelectField>
                   </label>
                   <label className="field-full">
                     <span className="field-label">메모</span>
@@ -130,10 +170,10 @@ export default async function DesignersPage({ searchParams }) {
                           </label>
                           <label className="field">
                             <span className="field-label">사용 여부</span>
-                            <select name="is_active" defaultValue={designer.is_active ? "1" : "0"}>
+                            <SelectField name="is_active" defaultValue={designer.is_active ? "1" : "0"}>
                               <option value="1">사용</option>
                               <option value="0">중지</option>
-                            </select>
+                            </SelectField>
                           </label>
                           <label className="field-full">
                             <span className="field-label">메모</span>

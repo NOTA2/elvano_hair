@@ -1,5 +1,7 @@
+import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
+import SelectField from "@/components/SelectField";
 import { isBranchMaster, requireAdminSession } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/config";
 import {
@@ -9,9 +11,25 @@ import {
   listNotificationTemplates,
   listTemplates
 } from "@/lib/db";
-import { paginateItems, parsePage } from "@/lib/pagination";
+import {
+  paginateItems,
+  parseDirection,
+  parsePage,
+  parsePageSize,
+  parseSort,
+  sortItems
+} from "@/lib/pagination";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+const SORT_OPTIONS = [
+  { value: "created_at", label: "생성일" },
+  { value: "signed_at", label: "서명일" },
+  { value: "document_title", label: "문서 제목" },
+  { value: "customer_name", label: "고객명" },
+  { value: "branch_name", label: "지점" },
+  { value: "status", label: "상태" }
+];
 
 function statusClass(status) {
   if (status === "signed") return "signed";
@@ -32,7 +50,27 @@ export default async function AdminDocumentsPage({ searchParams }) {
   const signedCount = documents.filter((document) => document.status === "signed").length;
   const pendingCount = documents.filter((document) => document.status === "pending").length;
   const failedCount = documents.filter((document) => document.status === "failed").length;
-  const pagination = paginateItems(documents, parsePage(resolvedSearchParams), PAGE_SIZE);
+  const pageSize = parsePageSize(
+    resolvedSearchParams,
+    "pageSize",
+    PAGE_SIZE_OPTIONS,
+    DEFAULT_PAGE_SIZE
+  );
+  const sortKey = parseSort(resolvedSearchParams, "sort", "created_at");
+  const direction = parseDirection(resolvedSearchParams, "direction", "desc");
+  const sortedDocuments = sortItems(documents, sortKey, direction, {
+    created_at: (document) => document.created_at,
+    signed_at: (document) => document.signed_at,
+    document_title: (document) => document.document_title,
+    customer_name: (document) => document.customer_name,
+    branch_name: (document) => document.branch_name,
+    status: (document) => document.status
+  });
+  const pagination = paginateItems(
+    sortedDocuments,
+    parsePage(resolvedSearchParams),
+    pageSize
+  );
 
   return (
     <div className="section-stack">
@@ -53,6 +91,12 @@ export default async function AdminDocumentsPage({ searchParams }) {
               <span className="metric-pill">대기 {pendingCount}</span>
               {failedCount > 0 ? <span className="metric-pill">실패 {failedCount}</span> : null}
             </div>
+            <ListQueryControls
+              currentPageSize={pageSize}
+              currentSort={sortKey}
+              currentDirection={direction}
+              sortOptions={SORT_OPTIONS}
+            />
             <ModalDialog
               title="서명 문서 발급"
               description="문서 템플릿과 알림톡 템플릿을 각각 선택해 고객 안내문을 발급합니다. 필요하면 Bizgo 알림톡으로 바로 전송할 수 있습니다."
@@ -73,19 +117,19 @@ export default async function AdminDocumentsPage({ searchParams }) {
                   ) : (
                     <label className="field">
                       <span className="field-label">지점</span>
-                      <select name="branch_id" required>
+                      <SelectField name="branch_id" required>
                         <option value="">선택</option>
                         {branches.map((branch) => (
                           <option key={branch.id} value={branch.id}>
                             {branch.name}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     </label>
                   )}
                   <label className="field">
                     <span className="field-label">문서 템플릿</span>
-                    <select name="template_id" required>
+                    <SelectField name="template_id" required>
                       <option value="">선택</option>
                       {documentTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
@@ -93,11 +137,11 @@ export default async function AdminDocumentsPage({ searchParams }) {
                           {template.name}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   </label>
                   <label className="field">
                     <span className="field-label">알림톡 템플릿</span>
-                    <select name="notification_template_id" required>
+                    <SelectField name="notification_template_id" required>
                       <option value="">선택</option>
                       {notificationTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
@@ -105,7 +149,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
                           {template.template_name} ({template.template_code})
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   </label>
                   <label className="field">
                     <span className="field-label">문서 제목</span>
@@ -129,7 +173,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
                   </label>
                   <label className="field">
                     <span className="field-label">담당 디자이너</span>
-                    <select name="designer_id" required>
+                    <SelectField name="designer_id" required>
                       <option value="">선택</option>
                       {designers.map((designer) => (
                         <option key={designer.id} value={designer.id}>
@@ -137,14 +181,14 @@ export default async function AdminDocumentsPage({ searchParams }) {
                           {designer.name}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   </label>
                   <label className="field">
                     <span className="field-label">알림톡 즉시 발송</span>
-                    <select name="send_alimtalk" defaultValue="0">
+                    <SelectField name="send_alimtalk" defaultValue="0">
                       <option value="0">아니오</option>
                       <option value="1">예</option>
-                    </select>
+                    </SelectField>
                   </label>
                 </div>
                 <div className="form-actions admin-form-actions">

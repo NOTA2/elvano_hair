@@ -1,11 +1,27 @@
+import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
+import SelectField from "@/components/SelectField";
 import { requireBranchManagerSession } from "@/lib/auth";
 import { listBranches } from "@/lib/db";
-import { paginateItems, parsePage } from "@/lib/pagination";
+import {
+  paginateItems,
+  parseDirection,
+  parsePage,
+  parsePageSize,
+  parseSort,
+  sortItems
+} from "@/lib/pagination";
 import { BRANCH_MASTER_ROLE, INTEGRATED_MASTER_ROLE } from "@/lib/roles";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+const SORT_OPTIONS = [
+  { value: "updated_at", label: "최근 수정일" },
+  { value: "name", label: "지점명" },
+  { value: "created_at", label: "생성일" },
+  { value: "is_active", label: "사용 여부" }
+];
 
 export default async function BranchesPage({ searchParams }) {
   const session = await requireBranchManagerSession();
@@ -14,7 +30,25 @@ export default async function BranchesPage({ searchParams }) {
   const branches = await listBranches({ branchId });
   const canCreateBranch = session.role === INTEGRATED_MASTER_ROLE;
   const activeBranches = branches.filter((branch) => branch.is_active).length;
-  const pagination = paginateItems(branches, parsePage(resolvedSearchParams), PAGE_SIZE);
+  const pageSize = parsePageSize(
+    resolvedSearchParams,
+    "pageSize",
+    PAGE_SIZE_OPTIONS,
+    DEFAULT_PAGE_SIZE
+  );
+  const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
+  const direction = parseDirection(resolvedSearchParams, "direction", "desc");
+  const sortedBranches = sortItems(branches, sortKey, direction, {
+    updated_at: (branch) => branch.updated_at,
+    name: (branch) => branch.name,
+    created_at: (branch) => branch.created_at,
+    is_active: (branch) => branch.is_active
+  });
+  const pagination = paginateItems(
+    sortedBranches,
+    parsePage(resolvedSearchParams),
+    pageSize
+  );
 
   return (
     <div className="section-stack">
@@ -33,6 +67,12 @@ export default async function BranchesPage({ searchParams }) {
               <span className="metric-pill">지점 {branches.length}</span>
               <span className="metric-pill">활성 {activeBranches}</span>
             </div>
+            <ListQueryControls
+              currentPageSize={pageSize}
+              currentSort={sortKey}
+              currentDirection={direction}
+              sortOptions={SORT_OPTIONS}
+            />
             {canCreateBranch ? (
               <ModalDialog
                 title="지점 추가"
@@ -48,10 +88,10 @@ export default async function BranchesPage({ searchParams }) {
                     </label>
                     <label className="field">
                       <span className="field-label">사용 여부</span>
-                      <select name="is_active" defaultValue="1">
+                      <SelectField name="is_active" defaultValue="1">
                         <option value="1">사용</option>
                         <option value="0">중지</option>
-                      </select>
+                      </SelectField>
                     </label>
                     <label className="field-full">
                       <span className="field-label">설명</span>
@@ -103,10 +143,10 @@ export default async function BranchesPage({ searchParams }) {
                           </label>
                           <label className="field">
                             <span className="field-label">사용 여부</span>
-                            <select name="is_active" defaultValue={branch.is_active ? "1" : "0"}>
+                            <SelectField name="is_active" defaultValue={branch.is_active ? "1" : "0"}>
                               <option value="1">사용</option>
                               <option value="0">중지</option>
-                            </select>
+                            </SelectField>
                           </label>
                           <label className="field-full">
                             <span className="field-label">설명</span>

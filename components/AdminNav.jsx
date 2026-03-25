@@ -94,7 +94,10 @@ function getNavGroups(session) {
     });
   }
 
-  if (session.role === INTEGRATED_MASTER_ROLE) {
+  if (
+    session.role === INTEGRATED_MASTER_ROLE ||
+    session.role === BRANCH_MASTER_ROLE
+  ) {
     groups.push({
       label: "Access",
       items: [{ href: "/admin/admin-users", label: "권한 관리", icon: "users" }]

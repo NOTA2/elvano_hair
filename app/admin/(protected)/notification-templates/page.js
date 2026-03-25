@@ -1,5 +1,7 @@
+import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
+import SelectField from "@/components/SelectField";
 import TemplateVariableGuide from "@/components/TemplateVariableGuide";
 import { requireBranchManagerSession } from "@/lib/auth";
 import { listBranches, listNotificationTemplates } from "@/lib/db";
@@ -11,10 +13,25 @@ import {
   TEMPLATE_EMPHASIZE_TYPE_OPTIONS,
   TEMPLATE_MESSAGE_TYPE_OPTIONS
 } from "@/lib/notificationTemplates";
-import { paginateItems, parsePage } from "@/lib/pagination";
+import {
+  paginateItems,
+  parseDirection,
+  parsePage,
+  parsePageSize,
+  parseSort,
+  sortItems
+} from "@/lib/pagination";
 import { BRANCH_MASTER_ROLE } from "@/lib/roles";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+const SORT_OPTIONS = [
+  { value: "updated_at", label: "최근 수정일" },
+  { value: "template_name", label: "템플릿명" },
+  { value: "template_code", label: "템플릿 코드" },
+  { value: "inspection_status", label: "검수 상태" },
+  { value: "branch_name", label: "지점" }
+];
 
 function branchField(session, branches, defaultBranchId) {
   if (session.role === BRANCH_MASTER_ROLE) {
@@ -32,14 +49,14 @@ function branchField(session, branches, defaultBranchId) {
   return (
     <label className="field">
       <span className="field-label">지점</span>
-      <select name="branch_id" defaultValue={defaultBranchId || ""} required>
+      <SelectField name="branch_id" defaultValue={defaultBranchId || ""} required>
         <option value="">선택</option>
         {branches.map((branch) => (
           <option key={branch.id} value={branch.id}>
             {branch.name}
           </option>
         ))}
-      </select>
+      </SelectField>
     </label>
   );
 }
@@ -101,7 +118,7 @@ function NotificationTemplateForm({
           </label>
           <label className="field">
             <span className="field-label">발신키 타입</span>
-            <select
+            <SelectField
               name="sender_key_type"
               defaultValue={template?.sender_key_type || "S"}
             >
@@ -110,7 +127,7 @@ function NotificationTemplateForm({
                   {option.label}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </label>
           <label className="field">
             <span className="field-label">템플릿 코드</span>
@@ -122,7 +139,7 @@ function NotificationTemplateForm({
           </label>
           <label className="field">
             <span className="field-label">메시지 유형</span>
-            <select
+            <SelectField
               name="template_message_type"
               defaultValue={template?.template_message_type || "BA"}
             >
@@ -131,11 +148,11 @@ function NotificationTemplateForm({
                   {option.label}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </label>
           <label className="field">
             <span className="field-label">강조 유형</span>
-            <select
+            <SelectField
               name="template_emphasize_type"
               defaultValue={template?.template_emphasize_type || "NONE"}
             >
@@ -144,7 +161,7 @@ function NotificationTemplateForm({
                   {option.label}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </label>
           <label className="field">
             <span className="field-label">카테고리 코드</span>
@@ -152,13 +169,13 @@ function NotificationTemplateForm({
           </label>
           <label className="field">
             <span className="field-label">보안 템플릿 여부</span>
-            <select
+            <SelectField
               name="security_flag"
               defaultValue={template?.security_flag ? "1" : "0"}
             >
               <option value="0">아니오</option>
               <option value="1">예</option>
-            </select>
+            </SelectField>
           </label>
           <label className="field">
             <span className="field-label">내부 메모</span>
@@ -166,10 +183,10 @@ function NotificationTemplateForm({
           </label>
           <label className="field">
             <span className="field-label">운영 상태</span>
-            <select name="status" defaultValue={template?.is_active ? "active" : "inactive"}>
+            <SelectField name="status" defaultValue={template?.is_active ? "active" : "inactive"}>
               <option value="active">사용</option>
               <option value="inactive">중지</option>
-            </select>
+            </SelectField>
           </label>
           <label className="field-full">
             <span className="field-label">알림톡 본문</span>
@@ -193,14 +210,14 @@ function NotificationTemplateForm({
           </label>
           <label className="field">
             <span className="field-label">버튼 타입</span>
-            <select name="button_type" defaultValue={template?.button_type || "WL"}>
+            <SelectField name="button_type" defaultValue={template?.button_type || "WL"}>
               <option value="">선택 안 함</option>
               {BUTTON_TYPE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </label>
           <label className="field">
             <span className="field-label">버튼 모바일 URL</span>
@@ -255,7 +272,26 @@ export default async function NotificationTemplatesPage({ searchParams }) {
   const deletedCount = templates.filter((template) => template.status === "deleted").length;
   const approvedCount = templates.filter((template) => template.inspection_status === "APR").length;
   const requestedCount = templates.filter((template) => template.inspection_status === "REQ").length;
-  const pagination = paginateItems(templates, parsePage(resolvedSearchParams), PAGE_SIZE);
+  const pageSize = parsePageSize(
+    resolvedSearchParams,
+    "pageSize",
+    PAGE_SIZE_OPTIONS,
+    DEFAULT_PAGE_SIZE
+  );
+  const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
+  const direction = parseDirection(resolvedSearchParams, "direction", "desc");
+  const sortedTemplates = sortItems(templates, sortKey, direction, {
+    updated_at: (template) => template.updated_at,
+    template_name: (template) => template.template_name,
+    template_code: (template) => template.template_code,
+    inspection_status: (template) => template.inspection_status,
+    branch_name: (template) => template.branch_name
+  });
+  const pagination = paginateItems(
+    sortedTemplates,
+    parsePage(resolvedSearchParams),
+    pageSize
+  );
 
   return (
     <div className="section-stack">
@@ -277,6 +313,12 @@ export default async function NotificationTemplatesPage({ searchParams }) {
               <span className="metric-pill">검수 요청 {requestedCount}</span>
               <span className="metric-pill">삭제 {deletedCount}</span>
             </div>
+            <ListQueryControls
+              currentPageSize={pageSize}
+              currentSort={sortKey}
+              currentDirection={direction}
+              sortOptions={SORT_OPTIONS}
+            />
             <ModalDialog
               title="알림톡 템플릿 등록"
               description="등록 시 Bizgo 알림톡 관리 API에 템플릿을 생성하고, 성공하면 로컬 목록에 저장합니다."
