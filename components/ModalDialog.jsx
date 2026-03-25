@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 export default function ModalDialog({
   title,
@@ -8,11 +8,17 @@ export default function ModalDialog({
   triggerLabel = "수정",
   triggerClassName = "secondary",
   size = "default",
+  lazy = true,
   children
 }) {
   const dialogRef = useRef(null);
+  const [hasOpened, setHasOpened] = useState(!lazy);
 
   function openDialog() {
+    if (!hasOpened) {
+      setHasOpened(true);
+    }
+
     dialogRef.current?.showModal();
   }
 
@@ -46,7 +52,7 @@ export default function ModalDialog({
               닫기
             </button>
           </div>
-          <div className="modal-body">{children}</div>
+          <div className="modal-body">{hasOpened ? children : null}</div>
         </div>
       </dialog>
     </>

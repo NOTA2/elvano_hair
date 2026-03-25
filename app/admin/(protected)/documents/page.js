@@ -9,19 +9,18 @@ import {
 } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/config";
 import {
+  countDocuments,
   listBranches,
   listDesigners,
-  listDocuments,
+  listDocumentsPage,
   listNotificationTemplates,
   listTemplates
 } from "@/lib/db";
 import {
-  paginateItems,
   parseDirection,
   parsePage,
   parsePageSize,
-  parseSort,
-  sortItems
+  parseSort
 } from "@/lib/pagination";
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -67,55 +66,58 @@ function formatPhoneNumber(value) {
 }
 
 export default async function AdminDocumentsPage({ searchParams }) {
-  const session = await requireAdminSession();
-  const resolvedSearchParams = await searchParams;
+  const [session, resolvedSearchParams] = await Promise.all([
+    requireAdminSession(),
+    searchParams
+  ]);
   const integratedMaster = isIntegratedMaster(session);
-  const allBranches = await listBranches({ activeOnly: true });
-  const requestedBranchId = Number(resolvedSearchParams.branchId);
-  const branchId =
-    integratedMaster && Number.isFinite(requestedBranchId) && requestedBranchId > 0
-      ? requestedBranchId
-      : session.branch_id || undefined;
-  const branches = integratedMaster
-    ? allBranches
-    : allBranches.filter((branch) => Number(branch.id) === Number(session.branch_id));
-  const documentTemplates = await listTemplates({ activeOnly: true });
-  const notificationTemplates = await listNotificationTemplates({ activeOnly: true });
-  const designers = await listDesigners({
-    activeOnly: true,
-    branchId: integratedMaster ? undefined : session.branch_id
-  });
-  const documents = await listDocuments({ branchId });
-  const baseUrl = getBaseUrl();
-  const signedCount = documents.filter((document) => document.status === "signed").length;
-  const pendingCount = documents.filter((document) => document.status === "pending").length;
-  const failedCount = documents.filter((document) => document.status === "failed").length;
   const pageSize = parsePageSize(
     resolvedSearchParams,
     "pageSize",
     PAGE_SIZE_OPTIONS,
     DEFAULT_PAGE_SIZE
   );
+  const currentPage = parsePage(resolvedSearchParams);
   const sortOptions = integratedMaster ? MASTER_SORT_OPTIONS : BRANCH_SORT_OPTIONS;
-  const sortKey = parseSort(
-    resolvedSearchParams,
-    "sort",
-    integratedMaster ? "created_at" : "created_at"
-  );
+  const sortKey = parseSort(resolvedSearchParams, "sort", "created_at");
   const direction = parseDirection(resolvedSearchParams, "direction", "desc");
-  const sortedDocuments = sortItems(documents, sortKey, direction, {
-    created_at: (document) => document.created_at,
-    signed_at: (document) => document.signed_at,
-    document_title: (document) => document.document_title,
-    customer_name: (document) => document.customer_name,
-    branch_name: (document) => document.branch_name,
-    status: (document) => document.status
-  });
-  const pagination = paginateItems(
-    sortedDocuments,
-    parsePage(resolvedSearchParams),
-    pageSize
-  );
+  const requestedBranchId = Number(resolvedSearchParams.branchId);
+  const branchId =
+    integratedMaster && Number.isFinite(requestedBranchId) && requestedBranchId > 0
+      ? requestedBranchId
+      : session.branch_id || undefined;
+  const [
+    allBranches,
+    documentTemplates,
+    notificationTemplates,
+    designers,
+    documentsPage,
+    signedCount,
+    pendingCount,
+    failedCount
+  ] = await Promise.all([
+    listBranches({ activeOnly: true }),
+    listTemplates({ activeOnly: true }),
+    listNotificationTemplates({ activeOnly: true }),
+    listDesigners({
+      activeOnly: true,
+      branchId: integratedMaster ? undefined : session.branch_id
+    }),
+    listDocumentsPage({
+      branchId,
+      page: currentPage,
+      pageSize,
+      sortKey,
+      direction
+    }),
+    countDocuments({ branchId, status: "signed" }),
+    countDocuments({ branchId, status: "pending" }),
+    countDocuments({ branchId, status: "failed" })
+  ]);
+  const branches = integratedMaster
+    ? allBranches
+    : allBranches.filter((branch) => Number(branch.id) === Number(session.branch_id));
+  const baseUrl = getBaseUrl();
 
   return (
     <div className="section-stack">
@@ -128,7 +130,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
         <div className="panel-toolbar">
           <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
-              <span className="metric-pill">전체 {documents.length}</span>
+              <span className="metric-pill">전체 {documentsPage.totalCount}</span>
               <span className="metric-pill">완료 {signedCount}</span>
               <span className="metric-pill">대기 {pendingCount}</span>
               {failedCount > 0 ? <span className="metric-pill">실패 {failedCount}</span> : null}
@@ -163,7 +165,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
             </ModalDialog>
           </div>
         </div>
-        {pagination.items.length === 0 ? (
+        {documentsPage.items.length === 0 ? (
           <div className="empty-state">발급된 문서가 없습니다.</div>
         ) : (
           <>
@@ -181,7 +183,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {pagination.items.map((document) => (
+                  {documentsPage.items.map((document) => (
                     <tr key={document.id}>
                       <td>
                         <span className={`badge ${statusClass(document.status)}`}>
@@ -226,8 +228,8 @@ export default async function AdminDocumentsPage({ searchParams }) {
               </table>
             </div>
             <PaginationControls
-              currentPage={pagination.currentPage}
-              totalPages={pagination.totalPages}
+              currentPage={documentsPage.currentPage}
+              totalPages={documentsPage.totalPages}
               searchParams={resolvedSearchParams}
             />
           </>

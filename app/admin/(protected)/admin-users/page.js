@@ -10,17 +10,17 @@ import {
 } from "@/lib/auth";
 import { MASTER_KAKAO_ID } from "@/lib/config";
 import {
-  listAdminUsers,
-  listBranches,
-  listLoginAttempts
+  countAdminUsers,
+  getLoginAttemptByKakaoId,
+  listAdminUsersPage,
+  listAdminUsersSlice,
+  listBranches
 } from "@/lib/db";
 import {
-  paginateItems,
   parseDirection,
   parsePage,
   parsePageSize,
-  parseSort,
-  sortItems
+  parseSort
 } from "@/lib/pagination";
 import {
   ADMIN_ROLE,
@@ -31,13 +31,6 @@ import {
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
-
-const PENDING_SORT_OPTIONS = [
-  { value: "last_attempt_at", label: "최근 시도일" },
-  { value: "attempt_count", label: "시도 횟수" },
-  { value: "nickname", label: "닉네임" },
-  { value: "kakao_user_id", label: "카카오 ID" }
-];
 
 const USER_SORT_OPTIONS = [
   { value: "updated_at", label: "최근 수정일" },
@@ -59,79 +52,72 @@ function roleOptionsForSession(session) {
   return [];
 }
 
-function buildSystemMaster(loginAttempts) {
-  const matchingAttempt = loginAttempts.find(
-    (attempt) => String(attempt.kakao_user_id) === String(MASTER_KAKAO_ID)
-  );
-
+function buildSystemMaster(loginAttempt) {
   return {
     id: `system:${MASTER_KAKAO_ID}`,
     kakao_user_id: String(MASTER_KAKAO_ID),
-    nickname: matchingAttempt?.nickname || "하드코딩 통합 마스터",
+    nickname: loginAttempt?.nickname || "하드코딩 통합 마스터",
     role: INTEGRATED_MASTER_ROLE,
     branch_id: null,
     branch_name: null,
     memo: "시스템 고정 계정",
-    updated_at: matchingAttempt?.last_attempt_at || null,
+    updated_at: loginAttempt?.last_attempt_at || null,
     is_system_master: true
   };
 }
 
+async function buildUsersPage({
+  viewerIsIntegratedMaster,
+  branchId,
+  currentPage,
+  pageSize,
+  sortKey,
+  direction
+}) {
+  if (!viewerIsIntegratedMaster) {
+    return await listAdminUsersPage({
+      branchId,
+      page: currentPage,
+      pageSize,
+      sortKey,
+      direction
+    });
+  }
+
+  const [systemMasterAttempt, storedUsersCount] = await Promise.all([
+    getLoginAttemptByKakaoId(String(MASTER_KAKAO_ID)),
+    countAdminUsers({ excludeKakaoUserIds: [MASTER_KAKAO_ID] })
+  ]);
+  const totalCount = storedUsersCount + 1;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(Math.max(currentPage, 1), totalPages);
+  const storedOffset = safePage === 1 ? 0 : (safePage - 1) * pageSize - 1;
+  const storedLimit = safePage === 1 ? Math.max(pageSize - 1, 0) : pageSize;
+  const storedUsers = await listAdminUsersSlice({
+    offset: storedOffset,
+    limit: storedLimit,
+    sortKey,
+    direction,
+    excludeKakaoUserIds: [MASTER_KAKAO_ID]
+  });
+
+  return {
+    items: safePage === 1 ? [buildSystemMaster(systemMasterAttempt), ...storedUsers] : storedUsers,
+    totalCount,
+    currentPage: safePage,
+    totalPages,
+    pageSize
+  };
+}
+
 export default async function AdminUsersPage({ searchParams }) {
-  const session = await requireBranchManagerSession();
-  const resolvedSearchParams = await searchParams;
+  const [session, resolvedSearchParams] = await Promise.all([
+    requireBranchManagerSession(),
+    searchParams
+  ]);
   const viewerIsIntegratedMaster = isIntegratedMaster(session);
   const viewerIsBranchMaster = isBranchMaster(session);
   const branchId = viewerIsBranchMaster ? session.branch_id : undefined;
-  const branches = await listBranches({ activeOnly: true, branchId });
-  const loginAttempts = await listLoginAttempts();
-  const storedUsers = await listAdminUsers({ branchId });
-  const allowedRoles = roleOptionsForSession(session);
-  const userMap = new Map(storedUsers.map((user) => [String(user.kakao_user_id), user]));
-  const pendingLoginAttempts = loginAttempts.filter(
-    (attempt) =>
-      attempt.kakao_user_id &&
-      String(attempt.kakao_user_id) !== String(MASTER_KAKAO_ID) &&
-      !userMap.has(String(attempt.kakao_user_id))
-  );
-  const allowedUsers = viewerIsIntegratedMaster
-    ? [buildSystemMaster(loginAttempts), ...storedUsers.filter((user) => String(user.kakao_user_id) !== String(MASTER_KAKAO_ID))]
-    : storedUsers;
-  const branchMasterCount = allowedUsers.filter((user) => user.role === BRANCH_MASTER_ROLE).length;
-
-  const pendingSort = parseSort(
-    resolvedSearchParams,
-    "pendingSort",
-    "last_attempt_at"
-  );
-  const pendingDirection = parseDirection(
-    resolvedSearchParams,
-    "pendingDirection",
-    "desc"
-  );
-  const pendingPageSize = parsePageSize(
-    resolvedSearchParams,
-    "pendingPageSize",
-    PAGE_SIZE_OPTIONS,
-    DEFAULT_PAGE_SIZE
-  );
-  const sortedPending = sortItems(
-    pendingLoginAttempts,
-    pendingSort,
-    pendingDirection,
-    {
-      last_attempt_at: (item) => item.last_attempt_at,
-      attempt_count: (item) => Number(item.attempt_count || 0),
-      nickname: (item) => item.nickname || "",
-      kakao_user_id: (item) => item.kakao_user_id
-    }
-  );
-  const pendingPagination = paginateItems(
-    sortedPending,
-    parsePage(resolvedSearchParams, "pendingPage"),
-    pendingPageSize
-  );
-
   const usersSort = parseSort(resolvedSearchParams, "usersSort", "updated_at");
   const usersDirection = parseDirection(
     resolvedSearchParams,
@@ -144,110 +130,33 @@ export default async function AdminUsersPage({ searchParams }) {
     PAGE_SIZE_OPTIONS,
     DEFAULT_PAGE_SIZE
   );
-  const sortedUsers = sortItems(
-    allowedUsers,
-    usersSort,
-    usersDirection,
-    {
-      updated_at: (item) => item.updated_at,
-      role: (item) => ROLE_LABELS[item.role] || item.role,
-      nickname: (item) => item.nickname || "",
-      kakao_user_id: (item) => item.kakao_user_id,
-      branch_name: (item) => item.branch_name || ""
-    }
-  );
-  const usersPagination = paginateItems(
-    sortedUsers,
-    parsePage(resolvedSearchParams, "usersPage"),
-    usersPageSize
-  );
+  const usersCurrentPage = parsePage(resolvedSearchParams, "usersPage");
+  const [branches, branchMasterCount, usersPage] = await Promise.all([
+    listBranches({ activeOnly: true, branchId }),
+    countAdminUsers({ branchId, role: BRANCH_MASTER_ROLE }),
+    buildUsersPage({
+      viewerIsIntegratedMaster,
+      branchId,
+      currentPage: usersCurrentPage,
+      pageSize: usersPageSize,
+      sortKey: usersSort,
+      direction: usersDirection
+    })
+  ]);
+  const allowedRoles = roleOptionsForSession(session);
 
   return (
     <div className="section-stack">
       <AdminSectionIntro
-        eyebrow="Pending Approval"
-        title="로그인 시도 계정"
-        description="권한이 없는 카카오 로그인 시도 계정을 목록으로 보고, 모달에서 권한을 부여합니다."
-      />
-      <section className="panel">
-        <div className="panel-toolbar">
-          <div className="panel-toolbar-primary">
-            <div className="panel-kpi-row">
-              <span className="metric-pill">권한 대기 {pendingLoginAttempts.length}</span>
-              <span className="metric-pill">허용 관리자 {allowedUsers.length}</span>
-              <span className="metric-pill">지점 마스터 {branchMasterCount}</span>
-            </div>
-          </div>
-          <div className="panel-actions">
-            <ListQueryControls
-              pageParam="pendingPage"
-              pageSizeParam="pendingPageSize"
-              sortParam="pendingSort"
-              directionParam="pendingDirection"
-              currentPageSize={pendingPageSize}
-              currentSort={pendingSort}
-              currentDirection={pendingDirection}
-              sortOptions={PENDING_SORT_OPTIONS}
-            />
-          </div>
-        </div>
-        {pendingPagination.items.length === 0 ? (
-          <div className="empty-state">권한 대기 중인 로그인 시도 계정이 없습니다.</div>
-        ) : (
-          <>
-            <div className="stack-list">
-              {pendingPagination.items.map((attempt) => (
-                <div key={attempt.kakao_user_id} className="list-row-card">
-                  <div className="list-row-copy">
-                    <div className="list-row-title">{attempt.nickname || "-"}</div>
-                    <div className="list-row-meta">{attempt.kakao_user_id}</div>
-                    <div className="list-row-meta">
-                      시도 {attempt.attempt_count}회 · 최근 {String(attempt.last_attempt_at).slice(0, 16).replace("T", " ")}
-                    </div>
-                  </div>
-                  <div className="list-row-actions">
-                    <span className="status-chip soft">{attempt.last_status}</span>
-                    <ModalDialog
-                      title={`${attempt.nickname || attempt.kakao_user_id} 권한 부여`}
-                      description="역할과 지점을 선택해 관리자 권한을 부여합니다."
-                      triggerLabel="권한 부여"
-                    >
-                      <AdminUserRoleForm
-                        action="/api/admin/admin-users"
-                        intent="create"
-                        kakaoUserId={attempt.kakao_user_id}
-                        nickname={attempt.nickname || ""}
-                        branches={branches}
-                        availableRoles={allowedRoles}
-                        fixedBranchId={viewerIsBranchMaster ? session.branch_id : ""}
-                        fixedBranchName={viewerIsBranchMaster ? session.branch_name || "" : ""}
-                        submitLabel="권한 저장"
-                      />
-                    </ModalDialog>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <PaginationControls
-              currentPage={pendingPagination.currentPage}
-              totalPages={pendingPagination.totalPages}
-              pageParam="pendingPage"
-              searchParams={resolvedSearchParams}
-            />
-          </>
-        )}
-      </section>
-
-      <AdminSectionIntro
         eyebrow="Allowed Admins"
-        title="허용된 관리자"
+        title="권한 관리"
         description="허용된 관리자 목록을 보고 모달에서 권한과 지점을 수정합니다."
       />
       <section className="panel">
         <div className="panel-toolbar">
           <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
-              <span className="metric-pill">전체 {allowedUsers.length}</span>
+              <span className="metric-pill">전체 {usersPage.totalCount}</span>
               <span className="metric-pill">지점 마스터 {branchMasterCount}</span>
             </div>
           </div>
@@ -264,12 +173,12 @@ export default async function AdminUsersPage({ searchParams }) {
             />
           </div>
         </div>
-        {usersPagination.items.length === 0 ? (
+        {usersPage.items.length === 0 ? (
           <div className="empty-state">등록된 허용 관리자가 없습니다.</div>
         ) : (
           <>
             <div className="stack-list">
-              {usersPagination.items.map((user) => (
+              {usersPage.items.map((user) => (
                 <div key={user.id} className="list-row-card">
                   <div className="list-row-copy">
                     <div className="list-row-title">{user.nickname || user.kakao_user_id}</div>
@@ -316,7 +225,7 @@ export default async function AdminUsersPage({ searchParams }) {
                             <input type="hidden" name="intent" value="delete" />
                             <input type="hidden" name="id" value={user.id} />
                             <button type="submit" className="danger">
-                              제거
+                              권한 삭제
                             </button>
                           </form>
                         ) : null}
@@ -327,8 +236,8 @@ export default async function AdminUsersPage({ searchParams }) {
               ))}
             </div>
             <PaginationControls
-              currentPage={usersPagination.currentPage}
-              totalPages={usersPagination.totalPages}
+              currentPage={usersPage.currentPage}
+              totalPages={usersPage.totalPages}
               pageParam="usersPage"
               searchParams={resolvedSearchParams}
             />

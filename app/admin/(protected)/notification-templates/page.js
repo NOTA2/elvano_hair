@@ -4,18 +4,19 @@ import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
 import TemplateVariableGuide from "@/components/TemplateVariableGuide";
 import { requireBranchManagerSession } from "@/lib/auth";
-import { listNotificationTemplates } from "@/lib/db";
+import {
+  countNotificationTemplates,
+  listNotificationTemplatesPage
+} from "@/lib/db";
 import {
   inspectionStatusLabel,
   notificationLifecycleLabel
 } from "@/lib/notificationTemplates";
 import {
-  paginateItems,
   parseDirection,
   parsePage,
   parsePageSize,
-  parseSort,
-  sortItems
+  parseSort
 } from "@/lib/pagination";
 
 const BIZGO_TEMPLATE_CONSOLE_URL =
@@ -159,32 +160,33 @@ function NotificationTemplateForm({
 }
 
 export default async function NotificationTemplatesPage({ searchParams }) {
-  await requireBranchManagerSession();
-  const resolvedSearchParams = await searchParams;
-  const templates = await listNotificationTemplates({ includeDeleted: true });
-  const activeCount = templates.filter((template) => template.status === "active").length;
-  const deletedCount = templates.filter((template) => template.status === "deleted").length;
-  const approvedCount = templates.filter((template) => template.inspection_status === "APR").length;
-  const requestedCount = templates.filter((template) => template.inspection_status === "REQ").length;
+  const [resolvedSearchParams] = await Promise.all([
+    searchParams,
+    requireBranchManagerSession()
+  ]);
   const pageSize = parsePageSize(
     resolvedSearchParams,
     "pageSize",
     PAGE_SIZE_OPTIONS,
     DEFAULT_PAGE_SIZE
   );
+  const currentPage = parsePage(resolvedSearchParams);
   const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
   const direction = parseDirection(resolvedSearchParams, "direction", "desc");
-  const sortedTemplates = sortItems(templates, sortKey, direction, {
-    updated_at: (template) => template.updated_at,
-    template_name: (template) => template.template_name,
-    template_code: (template) => template.template_code,
-    inspection_status: (template) => template.inspection_status
-  });
-  const pagination = paginateItems(
-    sortedTemplates,
-    parsePage(resolvedSearchParams),
-    pageSize
-  );
+  const [templatesPage, activeCount, deletedCount, approvedCount, requestedCount] =
+    await Promise.all([
+      listNotificationTemplatesPage({
+        includeDeleted: true,
+        page: currentPage,
+        pageSize,
+        sortKey,
+        direction
+      }),
+      countNotificationTemplates({ status: "active" }),
+      countNotificationTemplates({ status: "deleted" }),
+      countNotificationTemplates({ includeDeleted: true, inspectionStatus: "APR" }),
+      countNotificationTemplates({ includeDeleted: true, inspectionStatus: "REQ" })
+    ]);
   const errorMessage =
     String(resolvedSearchParams?.message || "").trim() ||
     ERROR_MESSAGES[String(resolvedSearchParams?.error || "")] ||
@@ -231,7 +233,7 @@ export default async function NotificationTemplatesPage({ searchParams }) {
         <div className="panel-toolbar">
           <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
-              <span className="metric-pill">전체 {templates.length}</span>
+              <span className="metric-pill">전체 {templatesPage.totalCount}</span>
               <span className="metric-pill">사용 {activeCount}</span>
               <span className="metric-pill">승인 {approvedCount}</span>
               <span className="metric-pill">검수 요청 {requestedCount}</span>
@@ -260,12 +262,12 @@ export default async function NotificationTemplatesPage({ searchParams }) {
 
         {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
 
-        {pagination.items.length === 0 ? (
+        {templatesPage.items.length === 0 ? (
           <div className="empty-state">등록된 알림톡 템플릿이 없습니다.</div>
         ) : (
           <>
             <div className="stack-list">
-              {pagination.items.map((template) => (
+              {templatesPage.items.map((template) => (
                 <div key={template.id} className="list-row-card">
                   <div className="list-row-copy">
                     <div className="list-row-title">
@@ -314,8 +316,8 @@ export default async function NotificationTemplatesPage({ searchParams }) {
               ))}
             </div>
             <PaginationControls
-              currentPage={pagination.currentPage}
-              totalPages={pagination.totalPages}
+              currentPage={templatesPage.currentPage}
+              totalPages={templatesPage.totalPages}
               searchParams={resolvedSearchParams}
             />
           </>

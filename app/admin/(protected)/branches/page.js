@@ -4,14 +4,12 @@ import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
 import SelectField from "@/components/SelectField";
 import { requireBranchManagerSession } from "@/lib/auth";
-import { listBranches } from "@/lib/db";
+import { countBranches, listBranchesPage } from "@/lib/db";
 import {
-  paginateItems,
   parseDirection,
   parsePage,
   parsePageSize,
-  parseSort,
-  sortItems
+  parseSort
 } from "@/lib/pagination";
 import { BRANCH_MASTER_ROLE, INTEGRATED_MASTER_ROLE } from "@/lib/roles";
 
@@ -25,31 +23,31 @@ const SORT_OPTIONS = [
 ];
 
 export default async function BranchesPage({ searchParams }) {
-  const session = await requireBranchManagerSession();
-  const resolvedSearchParams = await searchParams;
+  const [session, resolvedSearchParams] = await Promise.all([
+    requireBranchManagerSession(),
+    searchParams
+  ]);
   const branchId = session.role === BRANCH_MASTER_ROLE ? session.branch_id : undefined;
-  const branches = await listBranches({ branchId });
   const canCreateBranch = session.role === INTEGRATED_MASTER_ROLE;
-  const activeBranches = branches.filter((branch) => branch.is_active).length;
   const pageSize = parsePageSize(
     resolvedSearchParams,
     "pageSize",
     PAGE_SIZE_OPTIONS,
     DEFAULT_PAGE_SIZE
   );
+  const currentPage = parsePage(resolvedSearchParams);
   const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
   const direction = parseDirection(resolvedSearchParams, "direction", "desc");
-  const sortedBranches = sortItems(branches, sortKey, direction, {
-    updated_at: (branch) => branch.updated_at,
-    name: (branch) => branch.name,
-    created_at: (branch) => branch.created_at,
-    is_active: (branch) => branch.is_active
-  });
-  const pagination = paginateItems(
-    sortedBranches,
-    parsePage(resolvedSearchParams),
-    pageSize
-  );
+  const [branchesPage, activeBranches] = await Promise.all([
+    listBranchesPage({
+      branchId,
+      page: currentPage,
+      pageSize,
+      sortKey,
+      direction
+    }),
+    countBranches({ branchId, activeOnly: true })
+  ]);
 
   return (
     <div className="section-stack">
@@ -62,7 +60,7 @@ export default async function BranchesPage({ searchParams }) {
         <div className="panel-toolbar">
           <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
-              <span className="metric-pill">지점 {branches.length}</span>
+              <span className="metric-pill">지점 {branchesPage.totalCount}</span>
               <span className="metric-pill">활성 {activeBranches}</span>
             </div>
           </div>
@@ -116,12 +114,12 @@ export default async function BranchesPage({ searchParams }) {
           </div>
         ) : null}
 
-        {pagination.items.length === 0 ? (
+        {branchesPage.items.length === 0 ? (
           <div className="empty-state">등록된 지점이 없습니다.</div>
         ) : (
           <>
             <div className="stack-list">
-              {pagination.items.map((branch) => (
+              {branchesPage.items.map((branch) => (
                 <div key={branch.id} className="list-row-card">
                   <div className="list-row-copy">
                     <div className="list-row-title">{branch.name}</div>
@@ -189,8 +187,8 @@ export default async function BranchesPage({ searchParams }) {
               ))}
             </div>
             <PaginationControls
-              currentPage={pagination.currentPage}
-              totalPages={pagination.totalPages}
+              currentPage={branchesPage.currentPage}
+              totalPages={branchesPage.totalPages}
               searchParams={resolvedSearchParams}
             />
           </>

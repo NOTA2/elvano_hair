@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import RichTextEditor from "@/components/RichTextEditor";
+import LazyRichTextEditor from "@/components/LazyRichTextEditor";
 import SelectField from "@/components/SelectField";
 import { normalizeTemplateContent } from "@/lib/templateContent";
 
@@ -340,7 +340,7 @@ export default function AdminDocumentIssueForm({
         <div className="issue-form-row issue-form-row-1">
           <div className="field">
             <span className="field-label">본문</span>
-            <RichTextEditor
+            <LazyRichTextEditor
               name="content"
               defaultValue={editorContent}
               placeholder="문서 템플릿을 선택하면 본문이 여기에 불러와집니다."

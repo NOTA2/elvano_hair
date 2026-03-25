@@ -5,16 +5,15 @@ import PaginationControls from "@/components/PaginationControls";
 import SelectField from "@/components/SelectField";
 import { requireBranchManagerSession } from "@/lib/auth";
 import {
+  countDesigners,
   listBranches,
-  listDesigners
+  listDesignersPage
 } from "@/lib/db";
 import {
-  paginateItems,
   parseDirection,
   parsePage,
   parsePageSize,
-  parseSort,
-  sortItems
+  parseSort
 } from "@/lib/pagination";
 import { BRANCH_MASTER_ROLE } from "@/lib/roles";
 
@@ -56,31 +55,31 @@ function branchField(session, branches, defaultBranchId) {
 }
 
 export default async function DesignersPage({ searchParams }) {
-  const session = await requireBranchManagerSession();
-  const resolvedSearchParams = await searchParams;
+  const [session, resolvedSearchParams] = await Promise.all([
+    requireBranchManagerSession(),
+    searchParams
+  ]);
   const branchId = session.role === BRANCH_MASTER_ROLE ? session.branch_id : undefined;
-  const branches = await listBranches({ activeOnly: true, branchId });
-  const designers = await listDesigners({ branchId });
-  const activeDesigners = designers.filter((designer) => designer.is_active).length;
   const pageSize = parsePageSize(
     resolvedSearchParams,
     "pageSize",
     PAGE_SIZE_OPTIONS,
     DEFAULT_PAGE_SIZE
   );
+  const currentPage = parsePage(resolvedSearchParams);
   const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
   const direction = parseDirection(resolvedSearchParams, "direction", "desc");
-  const sortedDesigners = sortItems(designers, sortKey, direction, {
-    updated_at: (designer) => designer.updated_at,
-    name: (designer) => designer.name,
-    branch_name: (designer) => designer.branch_name,
-    is_active: (designer) => designer.is_active
-  });
-  const pagination = paginateItems(
-    sortedDesigners,
-    parsePage(resolvedSearchParams),
-    pageSize
-  );
+  const [branches, designersPage, activeDesigners] = await Promise.all([
+    listBranches({ activeOnly: true, branchId }),
+    listDesignersPage({
+      branchId,
+      page: currentPage,
+      pageSize,
+      sortKey,
+      direction
+    }),
+    countDesigners({ branchId, activeOnly: true })
+  ]);
 
   return (
     <div className="section-stack">
@@ -93,7 +92,7 @@ export default async function DesignersPage({ searchParams }) {
         <div className="panel-toolbar">
           <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
-              <span className="metric-pill">전체 {designers.length}</span>
+              <span className="metric-pill">전체 {designersPage.totalCount}</span>
               <span className="metric-pill">활성 {activeDesigners}</span>
             </div>
           </div>
@@ -137,12 +136,12 @@ export default async function DesignersPage({ searchParams }) {
             </div>
         </div>
 
-        {pagination.items.length === 0 ? (
+        {designersPage.items.length === 0 ? (
           <div className="empty-state">등록된 디자이너가 없습니다.</div>
         ) : (
           <>
             <div className="stack-list">
-              {pagination.items.map((designer) => (
+              {designersPage.items.map((designer) => (
                 <div key={designer.id} className="list-row-card">
                   <div className="list-row-copy">
                     <div className="list-row-title">{designer.name}</div>
@@ -200,8 +199,8 @@ export default async function DesignersPage({ searchParams }) {
               ))}
             </div>
             <PaginationControls
-              currentPage={pagination.currentPage}
-              totalPages={pagination.totalPages}
+              currentPage={designersPage.currentPage}
+              totalPages={designersPage.totalPages}
               searchParams={resolvedSearchParams}
             />
           </>
