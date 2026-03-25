@@ -307,6 +307,9 @@ textarea {
 
 .button,
 button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
   border-radius: 14px;
   background: #a9cdf3;
@@ -985,6 +988,11 @@ td {
   color: var(--admin-muted);
   font-size: 14px;
   line-height: 1.6;
+}
+
+.preformatted-copy {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .record-head {

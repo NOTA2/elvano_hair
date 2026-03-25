@@ -20,8 +20,8 @@ function statusClass(status) {
 export default async function AdminDashboardPage() {
   const session = await requireAdminSession();
   const branchId = isBranchMaster(session) ? session.branch_id : undefined;
-  const templates = await listTemplates({ branchId });
-  const notificationTemplates = await listNotificationTemplates({ branchId });
+  const templates = await listTemplates();
+  const notificationTemplates = await listNotificationTemplates();
   const documents = await listDocuments({ branchId });
   const admins = await listAdminUsers({ branchId });
   const branches = await listBranches({ branchId });

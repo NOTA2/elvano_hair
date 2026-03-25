@@ -150,7 +150,7 @@ export default function AdminNav({ session }) {
 
         <form action="/api/auth/logout" method="post" className="admin-sidebar-actions">
           <button className="secondary admin-logout-button" type="submit">
-            세션 종료
+            로그아웃
           </button>
         </form>
       </div>

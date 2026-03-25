@@ -2,9 +2,8 @@ import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
 import SelectField from "@/components/SelectField";
-import TemplateVariableGuide from "@/components/TemplateVariableGuide";
 import { requireBranchManagerSession } from "@/lib/auth";
-import { listBranches, listTemplates } from "@/lib/db";
+import { listTemplates } from "@/lib/db";
 import {
   paginateItems,
   parseDirection,
@@ -13,44 +12,14 @@ import {
   parseSort,
   sortItems
 } from "@/lib/pagination";
-import { BRANCH_MASTER_ROLE } from "@/lib/roles";
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const SORT_OPTIONS = [
   { value: "updated_at", label: "최근 수정일" },
   { value: "name", label: "템플릿명" },
-  { value: "branch_name", label: "지점" },
   { value: "status", label: "상태" }
 ];
-
-function branchField(session, branches, defaultBranchId) {
-  if (session.role === BRANCH_MASTER_ROLE) {
-    return (
-      <>
-        <input type="hidden" name="branch_id" value={session.branch_id} />
-        <label className="field">
-          <span className="field-label">지점</span>
-          <input value={session.branch_name || ""} disabled readOnly />
-        </label>
-      </>
-    );
-  }
-
-  return (
-    <label className="field">
-      <span className="field-label">지점</span>
-      <SelectField name="branch_id" defaultValue={defaultBranchId || ""} required>
-        <option value="">선택</option>
-        {branches.map((branch) => (
-          <option key={branch.id} value={branch.id}>
-            {branch.name}
-          </option>
-        ))}
-      </SelectField>
-    </label>
-  );
-}
 
 function templateStatusLabel(template) {
   if (template.status === "deleted") {
@@ -69,11 +38,9 @@ function templateStatusClass(template) {
 }
 
 export default async function AdminTemplatesPage({ searchParams }) {
-  const session = await requireBranchManagerSession();
+  await requireBranchManagerSession();
   const resolvedSearchParams = await searchParams;
-  const branchId = session.role === BRANCH_MASTER_ROLE ? session.branch_id : undefined;
-  const templates = await listTemplates({ branchId, includeDeleted: true });
-  const branches = await listBranches({ activeOnly: true, branchId });
+  const templates = await listTemplates({ includeDeleted: true });
   const activeCount = templates.filter((template) => template.status === "active").length;
   const inactiveCount = templates.filter((template) => template.status === "inactive").length;
   const deletedCount = templates.filter((template) => template.status === "deleted").length;
@@ -88,7 +55,6 @@ export default async function AdminTemplatesPage({ searchParams }) {
   const sortedTemplates = sortItems(templates, sortKey, direction, {
     updated_at: (template) => template.updated_at,
     name: (template) => template.name,
-    branch_name: (template) => template.branch_name,
     status: (template) => template.status
   });
   const pagination = paginateItems(
@@ -128,11 +94,9 @@ export default async function AdminTemplatesPage({ searchParams }) {
               triggerLabel="템플릿 추가"
               size="wide"
             >
-              <TemplateVariableGuide />
               <form action="/api/admin/templates" method="post">
                 <input type="hidden" name="intent" value="create" />
                 <div className="form-grid">
-                  {branchField(session, branches)}
                   <label className="field">
                     <span className="field-label">템플릿명</span>
                     <input name="name" required />
@@ -171,7 +135,7 @@ export default async function AdminTemplatesPage({ searchParams }) {
                   <div className="list-row-copy">
                     <div className="list-row-title">{template.name}</div>
                     <div className="list-row-meta">
-                      {template.branch_name || "-"} · {template.description || "설명 없음"}
+                      {template.description || "설명 없음"}
                     </div>
                   </div>
                   <div className="list-row-actions">
@@ -184,12 +148,10 @@ export default async function AdminTemplatesPage({ searchParams }) {
                       triggerLabel="수정"
                       size="wide"
                     >
-                      <TemplateVariableGuide />
                       <form action="/api/admin/templates" method="post">
                         <input type="hidden" name="intent" value="update" />
                         <input type="hidden" name="id" value={template.id} />
                         <div className="form-grid">
-                          {branchField(session, branches, template.branch_id)}
                           <label className="field">
                             <span className="field-label">템플릿명</span>
                             <input name="name" defaultValue={template.name} required />

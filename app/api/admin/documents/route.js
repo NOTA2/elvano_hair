@@ -61,11 +61,7 @@ export async function POST(request) {
     return redirectBack(headerStore);
   }
 
-  if (
-    Number(template.branch_id) !== Number(resolvedBranchId) ||
-    Number(notificationTemplate.branch_id) !== Number(resolvedBranchId) ||
-    Number(designer.branch_id) !== Number(resolvedBranchId)
-  ) {
+  if (Number(designer.branch_id) !== Number(resolvedBranchId)) {
     return redirectBack(headerStore);
   }
 

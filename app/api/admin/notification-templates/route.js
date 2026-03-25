@@ -1,28 +1,39 @@
 import { headers } from "next/headers";
 import {
   canManageBranchSettings,
-  getRouteSession,
-  isBranchMaster
+  getRouteSession
 } from "@/lib/auth";
-import {
-  cancelBizgoTemplateApproval,
-  createBizgoNotificationTemplate,
-  deleteBizgoNotificationTemplate,
-  getBizgoNotificationTemplate,
-  mapBizgoTemplateToLocal,
-  requestBizgoTemplateApproval,
-  updateBizgoNotificationTemplate
-} from "@/lib/bizgo";
-import { getBaseUrl } from "@/lib/config";
+import { getBizgoNotificationTemplate, mapBizgoTemplateToLocal } from "@/lib/bizgo";
+import { getBaseUrl, getBizgoSenderKey } from "@/lib/config";
 import {
   createNotificationTemplate,
   deleteNotificationTemplate,
+  getNotificationTemplateByCode,
   getNotificationTemplateById,
   updateNotificationTemplate
 } from "@/lib/db";
 
-function redirectBack(headerStore) {
-  return Response.redirect(headerStore.get("referer") || "/admin/notification-templates", 302);
+const ERROR_CODES = {
+  sender_key_missing: "sender_key_missing",
+  template_code_required: "template_code_required",
+  template_lookup_failed: "template_lookup_failed",
+  duplicate_template_code: "duplicate_template_code"
+};
+
+function redirectBack(headerStore, params = {}) {
+  const referer = headerStore.get("referer");
+  const url = new URL(referer || "/admin/notification-templates", getBaseUrl());
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") {
+      url.searchParams.delete(key);
+      return;
+    }
+
+    url.searchParams.set(key, String(value));
+  });
+
+  return Response.redirect(url, 302);
 }
 
 function normalizeString(formData, name) {
@@ -30,61 +41,32 @@ function normalizeString(formData, name) {
   return value === null ? null : String(value).trim();
 }
 
-function resolveBranchId(formData, session) {
-  return isBranchMaster(session) ? Number(session.branch_id) : Number(formData.get("branch_id"));
-}
-
-function buildTemplateInput(formData, branchId, { includeDeletedStatus = false } = {}) {
-  const status = String(formData.get("status") || "active");
-
+function buildLocalInput({ branchId, templateCode, currentTemplate = null }) {
   return {
-    branch_id: branchId,
-    description: normalizeString(formData, "description"),
-    sender_key: normalizeString(formData, "sender_key"),
-    sender_key_type: normalizeString(formData, "sender_key_type") || "S",
-    template_code: normalizeString(formData, "template_code"),
-    template_name: normalizeString(formData, "template_name"),
-    template_message_type: normalizeString(formData, "template_message_type") || "BA",
-    template_emphasize_type:
-      normalizeString(formData, "template_emphasize_type") || "NONE",
-    category_code: normalizeString(formData, "category_code"),
-    security_flag: formData.get("security_flag") === "1",
-    message: normalizeString(formData, "message"),
-    title: normalizeString(formData, "title"),
-    subtitle: normalizeString(formData, "subtitle"),
-    header: normalizeString(formData, "header"),
-    button_name: normalizeString(formData, "button_name"),
-    button_type: normalizeString(formData, "button_type"),
-    button_url_mobile: normalizeString(formData, "button_url_mobile"),
-    button_url_pc: normalizeString(formData, "button_url_pc"),
-    button_scheme_ios: normalizeString(formData, "button_scheme_ios"),
-    button_scheme_android: normalizeString(formData, "button_scheme_android"),
-    button_tel_number: normalizeString(formData, "button_tel_number"),
-    status:
-      includeDeletedStatus && status === "deleted"
-        ? "deleted"
-        : status === "inactive"
-          ? "inactive"
-          : "active"
+    branch_id: branchId || null,
+    template_code: templateCode,
+    status: currentTemplate?.status === "inactive" ? "inactive" : "active"
   };
 }
 
-async function syncRemoteState(templateId, currentTemplate) {
-  const remoteTemplate = await getBizgoNotificationTemplate({
-    senderKey: currentTemplate.sender_key,
-    templateCode: currentTemplate.template_code
-  });
-
-  if (!remoteTemplate) {
-    return null;
+async function fetchRemoteTemplate(templateCode) {
+  try {
+    getBizgoSenderKey();
+  } catch {
+    return { error: ERROR_CODES.sender_key_missing };
   }
 
-  return await updateNotificationTemplate(templateId, {
-    branch_id: currentTemplate.branch_id,
-    description: currentTemplate.description,
-    status: currentTemplate.status,
-    ...mapBizgoTemplateToLocal(remoteTemplate)
-  });
+  try {
+    const remoteTemplate = await getBizgoNotificationTemplate({ templateCode });
+
+    if (!remoteTemplate) {
+      return { error: ERROR_CODES.template_lookup_failed };
+    }
+
+    return { remoteTemplate };
+  } catch {
+    return { error: ERROR_CODES.template_lookup_failed };
+  }
 }
 
 export async function POST(request) {
@@ -99,21 +81,37 @@ export async function POST(request) {
   const intent = String(formData.get("intent") || "");
 
   if (intent === "create") {
-    const branchId = resolveBranchId(formData, session);
+    const templateCode = normalizeString(formData, "template_code");
 
-    if (!branchId) {
-      return redirectBack(headerStore);
+    if (!templateCode) {
+      return redirectBack(headerStore, { error: ERROR_CODES.template_code_required });
     }
 
-    const input = buildTemplateInput(formData, branchId);
-    const remoteTemplate = await createBizgoNotificationTemplate(input);
+    const duplicate = await getNotificationTemplateByCode(templateCode);
 
-    await createNotificationTemplate({
-      ...input,
-      ...mapBizgoTemplateToLocal(remoteTemplate)
-    });
+    if (duplicate && duplicate.status !== "deleted") {
+      return redirectBack(headerStore, { error: ERROR_CODES.duplicate_template_code });
+    }
 
-    return redirectBack(headerStore);
+    const { remoteTemplate, error } = await fetchRemoteTemplate(templateCode);
+
+    if (error) {
+      return redirectBack(headerStore, { error });
+    }
+
+    if (duplicate && duplicate.status === "deleted") {
+      await updateNotificationTemplate(duplicate.id, {
+        ...buildLocalInput({ branchId: null, templateCode }),
+        ...mapBizgoTemplateToLocal(remoteTemplate)
+      });
+    } else {
+      await createNotificationTemplate({
+        ...buildLocalInput({ branchId: null, templateCode }),
+        ...mapBizgoTemplateToLocal(remoteTemplate)
+      });
+    }
+
+    return redirectBack(headerStore, { error: "" });
   }
 
   const templateId = Number(formData.get("id"));
@@ -123,60 +121,52 @@ export async function POST(request) {
     return redirectBack(headerStore);
   }
 
-  if (isBranchMaster(session) && Number(currentTemplate.branch_id) !== Number(session.branch_id)) {
-    return redirectBack(headerStore);
-  }
-
   if (intent === "update") {
-    const branchId = resolveBranchId(formData, session);
+    const templateCode = normalizeString(formData, "template_code");
 
-    if (!branchId) {
-      return redirectBack(headerStore);
+    if (!templateCode) {
+      return redirectBack(headerStore, { error: ERROR_CODES.template_code_required });
     }
 
-    const input = buildTemplateInput(formData, branchId);
-    const remoteTemplate = await updateBizgoNotificationTemplate(input);
+    const duplicate = await getNotificationTemplateByCode(templateCode);
+
+    if (duplicate && Number(duplicate.id) !== Number(templateId) && duplicate.status !== "deleted") {
+      return redirectBack(headerStore, { error: ERROR_CODES.duplicate_template_code });
+    }
+
+    const { remoteTemplate, error } = await fetchRemoteTemplate(templateCode);
+
+    if (error) {
+      return redirectBack(headerStore, { error });
+    }
 
     await updateNotificationTemplate(templateId, {
-      ...input,
+      ...buildLocalInput({ branchId: null, templateCode, currentTemplate }),
       ...mapBizgoTemplateToLocal(remoteTemplate)
     });
 
-    return redirectBack(headerStore);
+    return redirectBack(headerStore, { error: "" });
   }
 
   if (intent === "sync") {
-    await syncRemoteState(templateId, currentTemplate);
-    return redirectBack(headerStore);
-  }
+    const { remoteTemplate, error } = await fetchRemoteTemplate(currentTemplate.template_code);
 
-  if (intent === "request_approval") {
-    await requestBizgoTemplateApproval({
-      senderKey: currentTemplate.sender_key,
-      senderKeyType: currentTemplate.sender_key_type,
-      templateCode: currentTemplate.template_code,
-      comment: normalizeString(formData, "comment")
-    });
-    await syncRemoteState(templateId, currentTemplate);
-    return redirectBack(headerStore);
-  }
+    if (error) {
+      return redirectBack(headerStore, { error });
+    }
 
-  if (intent === "cancel_approval") {
-    await cancelBizgoTemplateApproval({
-      senderKey: currentTemplate.sender_key,
-      templateCode: currentTemplate.template_code
+    await updateNotificationTemplate(templateId, {
+      branch_id: null,
+      status: currentTemplate.status,
+      ...mapBizgoTemplateToLocal(remoteTemplate)
     });
-    await syncRemoteState(templateId, currentTemplate);
-    return redirectBack(headerStore);
+
+    return redirectBack(headerStore, { error: "" });
   }
 
   if (intent === "delete") {
-    await deleteBizgoNotificationTemplate({
-      senderKey: currentTemplate.sender_key,
-      templateCode: currentTemplate.template_code
-    });
     await deleteNotificationTemplate(templateId);
   }
 
-  return redirectBack(headerStore);
+  return redirectBack(headerStore, { error: "" });
 }

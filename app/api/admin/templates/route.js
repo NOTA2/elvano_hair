@@ -1,8 +1,7 @@
 import { headers } from "next/headers";
 import {
   canManageBranchSettings,
-  getRouteSession,
-  isBranchMaster
+  getRouteSession
 } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/config";
 import {
@@ -36,16 +35,8 @@ export async function POST(request) {
   const intent = formData.get("intent");
 
   if (intent === "create") {
-    const resolvedBranchId = isBranchMaster(session)
-      ? session.branch_id
-      : Number(formData.get("branch_id"));
-
-    if (!resolvedBranchId) {
-      return redirectBack(headerStore);
-    }
-
     await createTemplate({
-      branch_id: resolvedBranchId,
+      branch_id: null,
       name: formData.get("name"),
       description: formData.get("description"),
       content: formData.get("content"),
@@ -54,26 +45,14 @@ export async function POST(request) {
   }
 
   if (intent === "update") {
-    const resolvedBranchId = isBranchMaster(session)
-      ? session.branch_id
-      : Number(formData.get("branch_id"));
-
-    if (!resolvedBranchId) {
-      return redirectBack(headerStore);
-    }
-
     const template = await getTemplateById(Number(formData.get("id")));
 
     if (!template) {
       return redirectBack(headerStore);
     }
 
-    if (isBranchMaster(session) && Number(template.branch_id) !== Number(session.branch_id)) {
-      return redirectBack(headerStore);
-    }
-
     await updateTemplate(Number(formData.get("id")), {
-      branch_id: resolvedBranchId,
+      branch_id: null,
       name: formData.get("name"),
       description: formData.get("description"),
       content: formData.get("content"),
@@ -85,10 +64,6 @@ export async function POST(request) {
     const template = await getTemplateById(Number(formData.get("id")));
 
     if (!template) {
-      return redirectBack(headerStore);
-    }
-
-    if (isBranchMaster(session) && Number(template.branch_id) !== Number(session.branch_id)) {
       return redirectBack(headerStore);
     }
 

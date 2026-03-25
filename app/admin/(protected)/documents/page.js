@@ -42,8 +42,8 @@ export default async function AdminDocumentsPage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const branchId = isBranchMaster(session) ? session.branch_id : undefined;
   const branches = await listBranches({ activeOnly: true, branchId });
-  const documentTemplates = await listTemplates({ activeOnly: true, branchId });
-  const notificationTemplates = await listNotificationTemplates({ activeOnly: true, branchId });
+  const documentTemplates = await listTemplates({ activeOnly: true });
+  const notificationTemplates = await listNotificationTemplates({ activeOnly: true });
   const designers = await listDesigners({ activeOnly: true, branchId });
   const documents = await listDocuments({ branchId });
   const baseUrl = getBaseUrl();
@@ -129,11 +129,10 @@ export default async function AdminDocumentsPage({ searchParams }) {
                   )}
                   <label className="field">
                     <span className="field-label">문서 템플릿</span>
-                    <SelectField name="template_id" required>
-                      <option value="">선택</option>
+                      <SelectField name="template_id" required>
+                        <option value="">선택</option>
                       {documentTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
-                          {template.branch_name ? `${template.branch_name} · ` : ""}
                           {template.name}
                         </option>
                       ))}
@@ -141,11 +140,10 @@ export default async function AdminDocumentsPage({ searchParams }) {
                   </label>
                   <label className="field">
                     <span className="field-label">알림톡 템플릿</span>
-                    <SelectField name="notification_template_id" required>
-                      <option value="">선택</option>
+                      <SelectField name="notification_template_id" required>
+                        <option value="">선택</option>
                       {notificationTemplates.map((template) => (
                         <option key={template.id} value={template.id}>
-                          {template.branch_name ? `${template.branch_name} · ` : ""}
                           {template.template_name} ({template.template_code})
                         </option>
                       ))}

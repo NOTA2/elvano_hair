@@ -77,6 +77,7 @@ KAKAO_REDIRECT_URI=http://localhost:3000/api/auth/kakao/callback
 
 BIZGO_BASE_URL=https://api.bizgo.io
 BIZGO_API_KEY=your_bizgo_api_key
+BIZGO_SENDER_KEY=your_bizgo_sender_key
 
 MASTER_KAKAO_ID=1234567890
 ```
@@ -91,6 +92,7 @@ MASTER_KAKAO_ID=1234567890
 - `KAKAO_CLIENT_SECRET`: 카카오 앱에서 사용 중이면 입력
 - `KAKAO_REDIRECT_URI`: 카카오 개발자 콘솔에 반드시 `http://localhost:3000/api/auth/kakao/callback` 등록
 - `BIZGO_API_KEY`: Bizgo 알림톡 발송 API 키
+- `BIZGO_SENDER_KEY`: Bizgo 발신 프로필 키. 알림톡 템플릿 조회와 발송에 공통 사용
 - `BIZGO_BASE_URL`: 기본값 사용 가능
 - `MASTER_KAKAO_ID`: 마스터 관리자 카카오 사용자 ID
 
@@ -111,11 +113,12 @@ npm run dev
 2. 지점 등록
 3. 디자이너 등록
 4. 문서 템플릿 등록
-5. 알림톡 템플릿 등록 및 검수 상태 확인
-6. 서명 문서 생성
-7. 생성된 공개 링크 열기
-8. 휴대폰 뒷자리 4자리 입력
-9. 서명 후 저장 확인
+5. Bizgo 콘솔에서 알림톡 템플릿 등록
+6. 관리자에서 알림톡 템플릿 코드 등록 및 조회 확인
+7. 서명 문서 생성
+8. 생성된 공개 링크 열기
+9. 휴대폰 뒷자리 4자리 입력
+10. 서명 후 저장 확인
 
 ### 7. 카카오 로그인 로컬 설정
 
@@ -191,23 +194,22 @@ npm run start
 이 프로젝트는 `문서 템플릿`과 `알림톡 템플릿`을 분리합니다.
 
 - 문서 템플릿: 고객이 실제로 읽고 서명하는 안내문 원본
-- 알림톡 템플릿: Bizgo 알림톡 관리 API로 등록/수정/삭제/검수 요청하는 발송 템플릿
+- 알림톡 템플릿: Bizgo 콘솔에서 직접 등록하는 발송 템플릿. 어드민에서는 템플릿 코드를 지점에 연결하고 조회 API로 동기화
 
-Bizgo 관리 API는 아래 단건 기준 흐름으로 사용합니다.
+현재 운영 흐름은 다음과 같습니다.
 
 - 조회: `GET /v1/center/alimtalk/template`
-- 등록: `POST /v1/center/alimtalk/template`
-- 수정: `PUT /v1/center/alimtalk/template`
-- 삭제: `DELETE /v1/center/alimtalk/template/senderKey/{senderKey}/templateCode/{templateCode}`
-- 검수 요청: `POST /v1/center/alimtalk/template/request`
-- 검수 요청 취소: `POST /v1/center/alimtalk/template/request/cancel`
+- Bizgo 콘솔 등록: [알림톡 템플릿 관리](https://www.bizgo.io/console/team/2815/kakao/template/alimtalk)
+- 로컬 어드민 등록: 템플릿 코드만 저장하고 조회 API 결과를 로컬에 동기화
+- 발송: `POST /v1/send/omni`
 
 문서 발급 시에는 `문서 템플릿`과 `알림톡 템플릿`을 각각 선택하고, "알림톡 즉시 발송"을 선택하면 `POST /v1/send/omni`로 실제 발송을 시도합니다.
+버튼 URL용 `{{document_url}}` 값은 프로토콜(`http://`, `https://`)이 제거된 상태로 전달되므로, Bizgo 템플릿 버튼 URL은 `https://#{document_url}` 형태로 등록해야 합니다.
 
 참고 문서:
 
 - [템플릿 관리](https://infobank-guide.gitbook.io/omni-api-v2/comm/kakao/alimtalk/management/template)
-- [템플릿 검수](https://infobank-guide.gitbook.io/omni-api-v2/comm/kakao/alimtalk/management/approval)
+- [메시지 발송](https://infobank-guide.gitbook.io/omni-api-v2/comm/kakao/alimtalk/send)
 
 ## 구현 메모
 

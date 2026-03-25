@@ -1,17 +1,12 @@
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
-import SelectField from "@/components/SelectField";
 import TemplateVariableGuide from "@/components/TemplateVariableGuide";
 import { requireBranchManagerSession } from "@/lib/auth";
-import { listBranches, listNotificationTemplates } from "@/lib/db";
+import { listNotificationTemplates } from "@/lib/db";
 import {
-  BUTTON_TYPE_OPTIONS,
   inspectionStatusLabel,
-  notificationLifecycleLabel,
-  SENDER_KEY_TYPE_OPTIONS,
-  TEMPLATE_EMPHASIZE_TYPE_OPTIONS,
-  TEMPLATE_MESSAGE_TYPE_OPTIONS
+  notificationLifecycleLabel
 } from "@/lib/notificationTemplates";
 import {
   paginateItems,
@@ -21,45 +16,24 @@ import {
   parseSort,
   sortItems
 } from "@/lib/pagination";
-import { BRANCH_MASTER_ROLE } from "@/lib/roles";
 
+const BIZGO_TEMPLATE_CONSOLE_URL =
+  "https://www.bizgo.io/console/team/2815/kakao/template/alimtalk";
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const SORT_OPTIONS = [
   { value: "updated_at", label: "최근 수정일" },
   { value: "template_name", label: "템플릿명" },
   { value: "template_code", label: "템플릿 코드" },
-  { value: "inspection_status", label: "검수 상태" },
-  { value: "branch_name", label: "지점" }
+  { value: "inspection_status", label: "검수 상태" }
 ];
-
-function branchField(session, branches, defaultBranchId) {
-  if (session.role === BRANCH_MASTER_ROLE) {
-    return (
-      <>
-        <input type="hidden" name="branch_id" value={session.branch_id} />
-        <label className="field">
-          <span className="field-label">지점</span>
-          <input value={session.branch_name || ""} disabled readOnly />
-        </label>
-      </>
-    );
-  }
-
-  return (
-    <label className="field">
-      <span className="field-label">지점</span>
-      <SelectField name="branch_id" defaultValue={defaultBranchId || ""} required>
-        <option value="">선택</option>
-        {branches.map((branch) => (
-          <option key={branch.id} value={branch.id}>
-            {branch.name}
-          </option>
-        ))}
-      </SelectField>
-    </label>
-  );
-}
+const ERROR_MESSAGES = {
+  sender_key_missing: "환경변수 `BIZGO_SENDER_KEY`가 없습니다.",
+  template_code_required: "템플릿 코드를 입력해야 합니다.",
+  template_lookup_failed:
+    "Bizgo 조회 결과가 없어 등록할 수 없습니다. Bizgo 콘솔에서 템플릿 코드와 발신 프로필 키를 먼저 확인해 주세요.",
+  duplicate_template_code: "같은 지점에 이미 등록된 알림톡 템플릿 코드입니다."
+};
 
 function lifecycleClass(template) {
   if (template.status === "deleted") {
@@ -85,189 +59,108 @@ function inspectionClass(status) {
   return "soft";
 }
 
-function canRequestApproval(template) {
-  return template.status !== "deleted" && (template.inspection_status || "REG") === "REG";
+function trimPreview(text, maxLength = 120) {
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return "Bizgo 조회 결과가 아직 없습니다.";
+  }
+
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, maxLength).trim()}...`
+    : normalized;
 }
 
-function canCancelApproval(template) {
-  return template.status !== "deleted" && ["REQ", "APR"].includes(template.inspection_status || "");
+function buttonSummary(template) {
+  if (!template.button_name || !template.button_type) {
+    return "버튼 없음";
+  }
+
+  const urls = [
+    template.button_url_mobile,
+    template.button_url_pc,
+    template.button_scheme_android,
+    template.button_scheme_ios,
+    template.button_tel_number
+  ].filter(Boolean);
+
+  return `${template.button_name} (${template.button_type})${urls.length ? ` · ${urls[0]}` : ""}`;
+}
+
+function NotificationTemplateDetails({ template }) {
+  if (!template) {
+    return null;
+  }
+
+  return (
+    <div className="section-stack">
+      <div className="record-card compact">
+        <div className="record-title">Bizgo 조회 결과</div>
+        <div className="record-meta">
+          템플릿명: {template.template_name || "-"}
+          <br />
+          템플릿 코드: {template.template_code || "-"}
+          <br />
+          검수 상태: {inspectionStatusLabel(template.inspection_status || "REG")}
+          <br />
+          마지막 동기화:{" "}
+          {template.last_synced_at
+            ? String(template.last_synced_at).slice(0, 16).replace("T", " ")
+            : "-"}
+        </div>
+      </div>
+      <div className="record-card compact">
+        <div className="record-title">본문 미리보기</div>
+        <div className="record-meta preformatted-copy">{template.message || "본문 없음"}</div>
+      </div>
+      <div className="record-card compact">
+        <div className="record-title">버튼 설정</div>
+        <div className="record-meta">{buttonSummary(template)}</div>
+      </div>
+    </div>
+  );
 }
 
 function NotificationTemplateForm({
-  session,
-  branches,
   template = null,
   intent
 }) {
-  const actionLabel = intent === "create" ? "알림톡 템플릿 등록" : "알림톡 템플릿 저장";
+  const actionLabel = intent === "create" ? "템플릿 코드 등록" : "등록 정보 저장";
 
   return (
     <>
-      <TemplateVariableGuide
-        title="알림톡 템플릿 치환값 안내"
-        description="비즈고 알림톡 텍스트, 버튼 URL 등에 아래 영문 치환값을 그대로 사용할 수 있습니다."
-      />
       <form action="/api/admin/notification-templates" method="post">
         <input type="hidden" name="intent" value={intent} />
+        <input
+          type="hidden"
+          name="status"
+          value={template?.status === "inactive" ? "inactive" : "active"}
+        />
         {template ? <input type="hidden" name="id" value={template.id} /> : null}
         <div className="form-grid">
-          {branchField(session, branches, template?.branch_id)}
-          <label className="field">
-            <span className="field-label">발신 프로필 키</span>
-            <input name="sender_key" defaultValue={template?.sender_key || ""} required />
-          </label>
-          <label className="field">
-            <span className="field-label">발신키 타입</span>
-            <SelectField
-              name="sender_key_type"
-              defaultValue={template?.sender_key_type || "S"}
-            >
-              {SENDER_KEY_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </SelectField>
-          </label>
           <label className="field">
             <span className="field-label">템플릿 코드</span>
-            <input name="template_code" defaultValue={template?.template_code || ""} required />
-          </label>
-          <label className="field">
-            <span className="field-label">템플릿명</span>
-            <input name="template_name" defaultValue={template?.template_name || ""} required />
-          </label>
-          <label className="field">
-            <span className="field-label">메시지 유형</span>
-            <SelectField
-              name="template_message_type"
-              defaultValue={template?.template_message_type || "BA"}
-            >
-              {TEMPLATE_MESSAGE_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </SelectField>
-          </label>
-          <label className="field">
-            <span className="field-label">강조 유형</span>
-            <SelectField
-              name="template_emphasize_type"
-              defaultValue={template?.template_emphasize_type || "NONE"}
-            >
-              {TEMPLATE_EMPHASIZE_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </SelectField>
-          </label>
-          <label className="field">
-            <span className="field-label">카테고리 코드</span>
-            <input name="category_code" defaultValue={template?.category_code || ""} />
-          </label>
-          <label className="field">
-            <span className="field-label">보안 템플릿 여부</span>
-            <SelectField
-              name="security_flag"
-              defaultValue={template?.security_flag ? "1" : "0"}
-            >
-              <option value="0">아니오</option>
-              <option value="1">예</option>
-            </SelectField>
-          </label>
-          <label className="field">
-            <span className="field-label">내부 메모</span>
-            <input name="description" defaultValue={template?.description || ""} />
-          </label>
-          <label className="field">
-            <span className="field-label">운영 상태</span>
-            <SelectField name="status" defaultValue={template?.is_active ? "active" : "inactive"}>
-              <option value="active">사용</option>
-              <option value="inactive">중지</option>
-            </SelectField>
-          </label>
-          <label className="field-full">
-            <span className="field-label">알림톡 본문</span>
-            <textarea name="message" defaultValue={template?.message || ""} required />
-          </label>
-          <label className="field">
-            <span className="field-label">강조 제목</span>
-            <input name="title" defaultValue={template?.title || ""} />
-          </label>
-          <label className="field">
-            <span className="field-label">강조 부제</span>
-            <input name="subtitle" defaultValue={template?.subtitle || ""} />
-          </label>
-          <label className="field">
-            <span className="field-label">헤더</span>
-            <input name="header" defaultValue={template?.header || ""} />
-          </label>
-          <label className="field">
-            <span className="field-label">버튼명</span>
-            <input name="button_name" defaultValue={template?.button_name || ""} />
-          </label>
-          <label className="field">
-            <span className="field-label">버튼 타입</span>
-            <SelectField name="button_type" defaultValue={template?.button_type || "WL"}>
-              <option value="">선택 안 함</option>
-              {BUTTON_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </SelectField>
-          </label>
-          <label className="field">
-            <span className="field-label">버튼 모바일 URL</span>
             <input
-              name="button_url_mobile"
-              defaultValue={template?.button_url_mobile || ""}
-              placeholder="{{document_url}}"
+              name="template_code"
+              defaultValue={template?.template_code || ""}
+              placeholder="Bizgo에 등록된 템플릿 코드"
+              required
             />
-          </label>
-          <label className="field">
-            <span className="field-label">버튼 PC URL</span>
-            <input
-              name="button_url_pc"
-              defaultValue={template?.button_url_pc || ""}
-              placeholder="{{document_url}}"
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">IOS Scheme</span>
-            <input
-              name="button_scheme_ios"
-              defaultValue={template?.button_scheme_ios || ""}
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">Android Scheme</span>
-            <input
-              name="button_scheme_android"
-              defaultValue={template?.button_scheme_android || ""}
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">전화번호 버튼용 번호</span>
-            <input name="button_tel_number" defaultValue={template?.button_tel_number || ""} />
           </label>
         </div>
         <div className="form-actions admin-form-actions">
           <button type="submit">{actionLabel}</button>
         </div>
       </form>
+      <NotificationTemplateDetails template={template} />
     </>
   );
 }
 
 export default async function NotificationTemplatesPage({ searchParams }) {
-  const session = await requireBranchManagerSession();
+  await requireBranchManagerSession();
   const resolvedSearchParams = await searchParams;
-  const branchId = session.role === BRANCH_MASTER_ROLE ? session.branch_id : undefined;
-  const branches = await listBranches({ activeOnly: true, branchId });
-  const templates = await listNotificationTemplates({ branchId, includeDeleted: true });
+  const templates = await listNotificationTemplates({ includeDeleted: true });
   const activeCount = templates.filter((template) => template.status === "active").length;
   const deletedCount = templates.filter((template) => template.status === "deleted").length;
   const approvedCount = templates.filter((template) => template.inspection_status === "APR").length;
@@ -284,25 +177,62 @@ export default async function NotificationTemplatesPage({ searchParams }) {
     updated_at: (template) => template.updated_at,
     template_name: (template) => template.template_name,
     template_code: (template) => template.template_code,
-    inspection_status: (template) => template.inspection_status,
-    branch_name: (template) => template.branch_name
+    inspection_status: (template) => template.inspection_status
   });
   const pagination = paginateItems(
     sortedTemplates,
     parsePage(resolvedSearchParams),
     pageSize
   );
+  const errorMessage =
+    ERROR_MESSAGES[String(resolvedSearchParams?.error || "")] || "";
 
   return (
     <div className="section-stack">
       <section className="panel">
         <div className="panel-head">
           <div>
+            <div className="panel-eyebrow">Bizgo Guide</div>
+            <h2 className="panel-title">알림톡 치환값 안내</h2>
+            <p className="panel-copy">
+              Bizgo 콘솔에서 알림톡 템플릿을 직접 등록한 뒤, 이 화면에서는 템플릿 코드만
+              연결합니다. 버튼 URL의 문서 링크는 프로토콜이 빠진 값으로 치환됩니다.
+            </p>
+          </div>
+          <div className="panel-actions">
+            <a
+              className="button secondary"
+              href={BIZGO_TEMPLATE_CONSOLE_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Bizgo 콘솔 열기
+            </a>
+          </div>
+        </div>
+        <TemplateVariableGuide
+          title="알림톡 템플릿 치환값 안내"
+          description="지점명/문서제목/고객명 같은 값을 한글 의미와 영문 변수명으로 함께 안내합니다."
+        />
+        <div className="record-card compact">
+          <div className="record-meta">
+            Bizgo 콘솔에서는 위 <code className="code">{"{{branch_name}}"}</code> 대신{" "}
+            <code className="code">{"#{branch_name}"}</code> 형식으로 입력하세요.
+            버튼 URL의 문서 링크는 <code className="code">{"https://#{document_url}"}</code>{" "}
+            형태로 등록하면 되고, 실제 치환값 <code className="code">document_url</code>
+            에는 프로토콜이 포함되지 않습니다.
+          </div>
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head">
+          <div>
             <div className="panel-eyebrow">Alimtalk Template Center</div>
             <h2 className="panel-title">알림톡 템플릿 관리</h2>
             <p className="panel-copy">
-              비즈고 알림톡 템플릿은 로컬 목록으로 관리하고, 등록/수정/삭제/검수 요청은
-              Bizgo 관리 API에 바로 반영합니다. 조회는 단건 동기화 방식으로 처리합니다.
+              알림톡 템플릿은 Bizgo 콘솔에서 직접 등록하고, 여기서는 템플릿 코드를
+              지점에 연결해 사용합니다. 저장 시 템플릿 조회 API로 원격 정보를 확인해
+              로컬 목록에 동기화합니다.
             </p>
           </div>
           <div className="panel-actions">
@@ -319,20 +249,20 @@ export default async function NotificationTemplatesPage({ searchParams }) {
               currentDirection={direction}
               sortOptions={SORT_OPTIONS}
             />
-            <ModalDialog
-              title="알림톡 템플릿 등록"
-              description="등록 시 Bizgo 알림톡 관리 API에 템플릿을 생성하고, 성공하면 로컬 목록에 저장합니다."
-              triggerLabel="알림톡 템플릿 추가"
-              size="wide"
-            >
-              <NotificationTemplateForm
-                session={session}
-                branches={branches}
-                intent="create"
-              />
-            </ModalDialog>
+            <div className="inline-actions">
+              <ModalDialog
+                title="알림톡 템플릿 코드 등록"
+                description="Bizgo 콘솔에 이미 등록된 알림톡 템플릿 코드를 로컬 목록에 연결합니다."
+                triggerLabel="템플릿 코드 등록"
+                size="wide"
+              >
+                <NotificationTemplateForm intent="create" />
+              </ModalDialog>
+            </div>
           </div>
         </div>
+
+        {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
 
         {pagination.items.length === 0 ? (
           <div className="empty-state">등록된 알림톡 템플릿이 없습니다.</div>
@@ -342,15 +272,11 @@ export default async function NotificationTemplatesPage({ searchParams }) {
               {pagination.items.map((template) => (
                 <div key={template.id} className="list-row-card">
                   <div className="list-row-copy">
-                    <div className="list-row-title">{template.template_name}</div>
-                    <div className="list-row-meta">
-                      {template.branch_name} · {template.sender_key} · {template.template_code}
+                    <div className="list-row-title">
+                      {template.template_name || template.template_code}
                     </div>
-                    <div className="list-row-meta">
-                      {template.last_synced_at
-                        ? `마지막 동기화 ${String(template.last_synced_at).slice(0, 16).replace("T", " ")}`
-                        : "아직 원격 조회 이력이 없습니다."}
-                    </div>
+                    <div className="list-row-meta">{template.template_code}</div>
+                    <div className="list-row-meta">{trimPreview(template.message)}</div>
                   </div>
                   <div className="list-row-actions">
                     <span className={`status-chip ${lifecycleClass(template)}`}>
@@ -367,55 +293,22 @@ export default async function NotificationTemplatesPage({ searchParams }) {
                           <input type="hidden" name="intent" value="sync" />
                           <input type="hidden" name="id" value={template.id} />
                           <button type="submit" className="secondary">
-                            원격 조회
+                            템플릿 조회
                           </button>
                         </form>
                         <ModalDialog
-                          title={`${template.template_name} 수정`}
-                          description="수정 시 Bizgo 원격 템플릿과 로컬 카탈로그를 함께 갱신합니다."
+                          title={`${template.template_name || template.template_code} 수정`}
+                          description="Bizgo 콘솔에서 템플릿을 바꿨다면 템플릿 조회로 최신 내용을 다시 동기화하세요."
                           triggerLabel="수정"
                           size="wide"
                         >
-                          <NotificationTemplateForm
-                            session={session}
-                            branches={branches}
-                            template={template}
-                            intent="update"
-                          />
+                          <NotificationTemplateForm template={template} intent="update" />
                         </ModalDialog>
-                        {canRequestApproval(template) ? (
-                          <ModalDialog
-                            title="검수 요청"
-                            description="검수 요청 시 선택적으로 의견 또는 문의 사항을 남길 수 있습니다."
-                            triggerLabel="검수 요청"
-                          >
-                            <form action="/api/admin/notification-templates" method="post">
-                              <input type="hidden" name="intent" value="request_approval" />
-                              <input type="hidden" name="id" value={template.id} />
-                              <label className="field-full">
-                                <span className="field-label">의견 또는 문의 사항</span>
-                                <textarea name="comment" />
-                              </label>
-                              <div className="form-actions admin-form-actions">
-                                <button type="submit">검수 요청 전송</button>
-                              </div>
-                            </form>
-                          </ModalDialog>
-                        ) : null}
-                        {canCancelApproval(template) ? (
-                          <form action="/api/admin/notification-templates" method="post">
-                            <input type="hidden" name="intent" value="cancel_approval" />
-                            <input type="hidden" name="id" value={template.id} />
-                            <button type="submit" className="secondary">
-                              검수 요청 취소
-                            </button>
-                          </form>
-                        ) : null}
                         <form action="/api/admin/notification-templates" method="post">
                           <input type="hidden" name="intent" value="delete" />
                           <input type="hidden" name="id" value={template.id} />
                           <button type="submit" className="danger">
-                            원격 삭제
+                            목록에서 삭제
                           </button>
                         </form>
                       </>
