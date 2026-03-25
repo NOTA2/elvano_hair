@@ -3,6 +3,24 @@
 import { useEffect, useRef, useState } from "react";
 import { normalizeTemplateContent } from "@/lib/templateContent";
 
+function formatPhoneNumber(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+
+  if (!digits) {
+    return "";
+  }
+
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  return String(value || "");
+}
+
 function resizeCanvas(canvas) {
   const ratio = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -184,20 +202,24 @@ export default function SignatureClient({
           <h1 className="doc-title">{documentData.document_title}</h1>
         </div>
 
-        <div className="doc-date">{documentData.document_date}</div>
-
-        <div className="doc-info-grid">
-          <div className="info-card">
-            <span className="field-label">고객 이름</span>
-            <strong>{documentData.customer_name}</strong>
+        <div className="doc-summary-grid">
+          <div className="doc-summary-card">
+            <div className="doc-summary-label">성함</div>
+            <div className="doc-summary-value">{documentData.customer_name || "-"}</div>
           </div>
-          <div className="info-card">
-            <span className="field-label">휴대폰 뒷자리</span>
-            <strong>{documentData.phone_last4}</strong>
+          <div className="doc-summary-card">
+            <div className="doc-summary-label">연락처</div>
+            <div className="doc-summary-value">
+              {formatPhoneNumber(documentData.recipient_phone) || documentData.phone_last4 || "-"}
+            </div>
           </div>
-          <div className="info-card">
-            <span className="field-label">담당 디자이너</span>
-            <strong>{documentData.designer_name}</strong>
+          <div className="doc-summary-card">
+            <div className="doc-summary-label">일자</div>
+            <div className="doc-summary-value">{documentData.document_date || "-"}</div>
+          </div>
+          <div className="doc-summary-card">
+            <div className="doc-summary-label">담당 디자이너</div>
+            <div className="doc-summary-value">{documentData.designer_name || "-"}</div>
           </div>
         </div>
 

@@ -1,8 +1,11 @@
-import ListQueryControls from "@/components/ListQueryControls";
+import AdminDocumentIssueForm from "@/components/AdminDocumentIssueForm";
+import DocumentsListControls from "@/components/DocumentsListControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
-import SelectField from "@/components/SelectField";
-import { isBranchMaster, requireAdminSession } from "@/lib/auth";
+import {
+  isIntegratedMaster,
+  requireAdminSession
+} from "@/lib/auth";
 import { getBaseUrl } from "@/lib/config";
 import {
   listBranches,
@@ -22,7 +25,7 @@ import {
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
-const SORT_OPTIONS = [
+const MASTER_SORT_OPTIONS = [
   { value: "created_at", label: "생성일" },
   { value: "signed_at", label: "서명일" },
   { value: "document_title", label: "문서 제목" },
@@ -30,6 +33,7 @@ const SORT_OPTIONS = [
   { value: "branch_name", label: "지점" },
   { value: "status", label: "상태" }
 ];
+const BRANCH_SORT_OPTIONS = MASTER_SORT_OPTIONS.filter((option) => option.value !== "branch_name");
 
 function statusClass(status) {
   if (status === "signed") return "signed";
@@ -37,14 +41,49 @@ function statusClass(status) {
   return "pending";
 }
 
+function statusLabel(status) {
+  if (status === "signed") return "완료";
+  if (status === "failed") return "실패";
+  return "대기";
+}
+
+function formatPhoneNumber(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+
+  if (!digits) {
+    return "-";
+  }
+
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  return String(value || "-");
+}
+
 export default async function AdminDocumentsPage({ searchParams }) {
   const session = await requireAdminSession();
   const resolvedSearchParams = await searchParams;
-  const branchId = isBranchMaster(session) ? session.branch_id : undefined;
-  const branches = await listBranches({ activeOnly: true, branchId });
+  const integratedMaster = isIntegratedMaster(session);
+  const allBranches = await listBranches({ activeOnly: true });
+  const requestedBranchId = Number(resolvedSearchParams.branchId);
+  const branchId =
+    integratedMaster && Number.isFinite(requestedBranchId) && requestedBranchId > 0
+      ? requestedBranchId
+      : session.branch_id || undefined;
+  const branches = integratedMaster
+    ? allBranches
+    : allBranches.filter((branch) => Number(branch.id) === Number(session.branch_id));
   const documentTemplates = await listTemplates({ activeOnly: true });
   const notificationTemplates = await listNotificationTemplates({ activeOnly: true });
-  const designers = await listDesigners({ activeOnly: true, branchId });
+  const designers = await listDesigners({
+    activeOnly: true,
+    branchId: integratedMaster ? undefined : session.branch_id
+  });
   const documents = await listDocuments({ branchId });
   const baseUrl = getBaseUrl();
   const signedCount = documents.filter((document) => document.status === "signed").length;
@@ -56,7 +95,12 @@ export default async function AdminDocumentsPage({ searchParams }) {
     PAGE_SIZE_OPTIONS,
     DEFAULT_PAGE_SIZE
   );
-  const sortKey = parseSort(resolvedSearchParams, "sort", "created_at");
+  const sortOptions = integratedMaster ? MASTER_SORT_OPTIONS : BRANCH_SORT_OPTIONS;
+  const sortKey = parseSort(
+    resolvedSearchParams,
+    "sort",
+    integratedMaster ? "created_at" : "created_at"
+  );
   const direction = parseDirection(resolvedSearchParams, "direction", "desc");
   const sortedDocuments = sortItems(documents, sortKey, direction, {
     created_at: (document) => document.created_at,
@@ -91,11 +135,15 @@ export default async function AdminDocumentsPage({ searchParams }) {
               <span className="metric-pill">대기 {pendingCount}</span>
               {failedCount > 0 ? <span className="metric-pill">실패 {failedCount}</span> : null}
             </div>
-            <ListQueryControls
+            <DocumentsListControls
+              currentBranchId={branchId ? String(branchId) : ""}
+              branchOptions={allBranches}
+              branchDisabled={!integratedMaster}
               currentPageSize={pageSize}
               currentSort={sortKey}
               currentDirection={direction}
-              sortOptions={SORT_OPTIONS}
+              sortOptions={sortOptions}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
             />
             <ModalDialog
               title="서명 문서 발급"
@@ -103,99 +151,15 @@ export default async function AdminDocumentsPage({ searchParams }) {
               triggerLabel="문서 발급"
               size="wide"
             >
-              <form action="/api/admin/documents" method="post">
-                <input type="hidden" name="intent" value="create" />
-                <div className="form-grid">
-                  {isBranchMaster(session) ? (
-                    <>
-                      <input type="hidden" name="branch_id" value={session.branch_id} />
-                      <label className="field">
-                        <span className="field-label">지점</span>
-                        <input value={session.branch_name || ""} disabled readOnly />
-                      </label>
-                    </>
-                  ) : (
-                    <label className="field">
-                      <span className="field-label">지점</span>
-                      <SelectField name="branch_id" required>
-                        <option value="">선택</option>
-                        {branches.map((branch) => (
-                          <option key={branch.id} value={branch.id}>
-                            {branch.name}
-                          </option>
-                        ))}
-                      </SelectField>
-                    </label>
-                  )}
-                  <label className="field">
-                    <span className="field-label">문서 템플릿</span>
-                      <SelectField name="template_id" required>
-                        <option value="">선택</option>
-                      {documentTemplates.map((template) => (
-                        <option key={template.id} value={template.id}>
-                          {template.name}
-                        </option>
-                      ))}
-                    </SelectField>
-                  </label>
-                  <label className="field">
-                    <span className="field-label">알림톡 템플릿</span>
-                      <SelectField name="notification_template_id" required>
-                        <option value="">선택</option>
-                      {notificationTemplates.map((template) => (
-                        <option key={template.id} value={template.id}>
-                          {template.template_name} ({template.template_code})
-                        </option>
-                      ))}
-                    </SelectField>
-                  </label>
-                  <label className="field">
-                    <span className="field-label">문서 제목</span>
-                    <input name="document_title" placeholder="멤버십 안내문" required />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">날짜</span>
-                    <input type="date" name="document_date" required />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">고객 이름</span>
-                    <input name="customer_name" required />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">휴대폰 뒷자리 4자리</span>
-                    <input name="phone_last4" pattern="\d{4}" maxLength={4} required />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">전체 수신 휴대폰 번호</span>
-                    <input name="recipient_phone" placeholder="01012345678" />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">담당 디자이너</span>
-                    <SelectField name="designer_id" required>
-                      <option value="">선택</option>
-                      {designers.map((designer) => (
-                        <option key={designer.id} value={designer.id}>
-                          {designer.branch_name ? `${designer.branch_name} · ` : ""}
-                          {designer.name}
-                        </option>
-                      ))}
-                    </SelectField>
-                  </label>
-                  <label className="field">
-                    <span className="field-label">알림톡 즉시 발송</span>
-                    <SelectField name="send_alimtalk" defaultValue="0">
-                      <option value="0">아니오</option>
-                      <option value="1">예</option>
-                    </SelectField>
-                  </label>
-                </div>
-                <div className="form-actions admin-form-actions">
-                  <button type="submit">문서 생성</button>
-                  <span className="pill-note">
-                    알림톡 즉시 발송을 켜면 선택한 알림톡 템플릿으로 Bizgo 발송을 시도합니다.
-                  </span>
-                </div>
-              </form>
+              <AdminDocumentIssueForm
+                branchLocked={!integratedMaster}
+                branchId={session.branch_id}
+                branchName={session.branch_name || ""}
+                branches={branches}
+                designers={designers}
+                documentTemplates={documentTemplates}
+                notificationTemplates={notificationTemplates}
+              />
             </ModalDialog>
           </div>
         </div>
@@ -209,11 +173,12 @@ export default async function AdminDocumentsPage({ searchParams }) {
                 <thead>
                   <tr>
                     <th>상태</th>
-                    <th>문서</th>
-                    <th>고객</th>
-                    <th>열람</th>
-                    <th>알림톡</th>
+                    {integratedMaster ? <th>지점</th> : null}
+                    <th>담당 디자이너</th>
+                    <th>고객 이름</th>
+                    <th>문서 제목</th>
                     <th>생성일</th>
+                    <th>열람</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -221,18 +186,30 @@ export default async function AdminDocumentsPage({ searchParams }) {
                     <tr key={document.id}>
                       <td>
                         <span className={`badge ${statusClass(document.status)}`}>
-                          {document.status}
+                          {statusLabel(document.status)}
                         </span>
                       </td>
+                      {integratedMaster ? (
+                        <td>
+                          <div className="table-cell-title">{document.branch_name || "-"}</div>
+                        </td>
+                      ) : null}
                       <td>
-                        <div className="table-cell-title">{document.document_title}</div>
-                        <div className="table-cell-copy">
-                          {document.branch_name} · 문서 {document.template_name || "-"} · 알림톡 {document.notification_template_name || "-"} · {document.designer_name}
-                        </div>
+                        <div className="table-cell-title">{document.designer_name || "-"}</div>
                       </td>
                       <td>
                         <div className="table-cell-title">{document.customer_name}</div>
-                        <div className="table-cell-copy">{document.phone_last4}</div>
+                        <div className="table-cell-copy">
+                          {formatPhoneNumber(document.recipient_phone)}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="table-cell-title">{document.document_title}</div>
+                      </td>
+                      <td>
+                        <div className="table-cell-title">
+                          {String(document.created_at).slice(0, 10)}
+                        </div>
                       </td>
                       <td>
                         <a
@@ -243,18 +220,6 @@ export default async function AdminDocumentsPage({ searchParams }) {
                         >
                           문서 보기
                         </a>
-                      </td>
-                      <td>
-                        <div className="table-cell-title">{document.bizgo_status || "-"}</div>
-                        <div className="table-cell-copy">{document.recipient_phone || "-"}</div>
-                      </td>
-                      <td>
-                        <div className="table-cell-title">
-                          {String(document.created_at).slice(0, 10)}
-                        </div>
-                        <div className="table-cell-copy">
-                          {document.signed_at ? `서명 ${String(document.signed_at).slice(0, 10)}` : ""}
-                        </div>
                       </td>
                     </tr>
                   ))}

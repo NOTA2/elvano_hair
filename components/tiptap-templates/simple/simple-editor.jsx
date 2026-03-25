@@ -36,10 +36,8 @@ import "@/components/tiptap-node/paragraph-node/paragraph-node.scss"
 
 // --- Tiptap UI ---
 import { HeadingDropdownMenu } from "@/components/tiptap-ui/heading-dropdown-menu"
-import { ImageUploadButton } from "@/components/tiptap-ui/image-upload-button"
 import { ListDropdownMenu } from "@/components/tiptap-ui/list-dropdown-menu"
 import { BlockquoteButton } from "@/components/tiptap-ui/blockquote-button"
-import { CodeBlockButton } from "@/components/tiptap-ui/code-block-button"
 import {
   ColorHighlightPopover,
   ColorHighlightPopoverContent,
@@ -87,7 +85,6 @@ const MainToolbarContent = ({
         <HeadingDropdownMenu modal={false} levels={[1, 2, 3, 4]} />
         <ListDropdownMenu modal={false} types={["bulletList", "orderedList", "taskList"]} />
         <BlockquoteButton />
-        <CodeBlockButton />
       </ToolbarGroup>
       <ToolbarSeparator />
       <ToolbarGroup>
@@ -114,10 +111,6 @@ const MainToolbarContent = ({
         <TextAlignButton align="center" />
         <TextAlignButton align="right" />
         <TextAlignButton align="justify" />
-      </ToolbarGroup>
-      <ToolbarSeparator />
-      <ToolbarGroup>
-        <ImageUploadButton text="Add" />
       </ToolbarGroup>
     </>
   );
@@ -149,15 +142,19 @@ const MobileToolbarContent = ({
   </>
 )
 
-function normalizedHtml(html, editor) {
-  if (!editor || editor.isEmpty) {
-    return "";
-  }
-
+function normalizeHtmlString(html) {
   return String(html || "")
     .replace(/^<p><\/p>$/i, "")
     .replace(/^<p><br\s*\/?><\/p>$/i, "")
     .trim();
+}
+
+function getEditorHtml(editor) {
+  if (!editor || editor.isEmpty) {
+    return "";
+  }
+
+  return normalizeHtmlString(editor.getHTML());
 }
 
 export function SimpleEditor({
@@ -213,7 +210,7 @@ export function SimpleEditor({
     ],
     content: initialContent,
     onUpdate({ editor: currentEditor }) {
-      onChange?.(normalizedHtml(currentEditor.getHTML(), currentEditor))
+      onChange?.(getEditorHtml(currentEditor))
     },
   })
 
@@ -235,7 +232,7 @@ export function SimpleEditor({
 
     const nextContent = normalizeTemplateContent(content) || "<p></p>"
 
-    if (normalizedHtml(editor.getHTML(), editor) !== normalizedHtml(nextContent, editor)) {
+    if (getEditorHtml(editor) !== normalizeHtmlString(nextContent)) {
       editor.commands.setContent(nextContent, false)
     }
   }, [content, editor])

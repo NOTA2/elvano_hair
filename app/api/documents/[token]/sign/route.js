@@ -3,7 +3,8 @@ import { getDocumentByToken, signDocument } from "@/lib/db";
 import { serializePublicDocument } from "@/lib/documents";
 
 export async function POST(request, { params }) {
-  const document = await getDocumentByToken(params.token);
+  const resolvedParams = await params;
+  const document = await getDocumentByToken(resolvedParams.token);
 
   if (!document) {
     return Response.json({ error: "문서를 찾을 수 없습니다." }, { status: 404 });

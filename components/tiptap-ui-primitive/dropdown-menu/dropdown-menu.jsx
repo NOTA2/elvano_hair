@@ -6,6 +6,14 @@ import { CheckIcon } from "@/components/tiptap-icons/check-icon"
 
 import "@/components/tiptap-ui-primitive/dropdown-menu/dropdown-menu.scss"
 
+function resolvePortalContainer() {
+  if (typeof document === "undefined") {
+    return undefined
+  }
+
+  return document.querySelector("dialog[open]") || document.body
+}
+
 function DropdownMenu({
   ...props
 }) {
@@ -15,7 +23,13 @@ function DropdownMenu({
 function DropdownMenuPortal({
   ...props
 }) {
-  return (<DropdownMenuPrimitive.Portal data-slot="tiptap-dropdown-menu-portal" {...props} />);
+  return (
+    <DropdownMenuPrimitive.Portal
+      data-slot="tiptap-dropdown-menu-portal"
+      container={props.container ?? resolvePortalContainer()}
+      {...props}
+    />
+  );
 }
 
 function DropdownMenuTrigger({
@@ -28,10 +42,11 @@ function DropdownMenuContent({
   className,
   align = "start",
   sideOffset = 4,
+  container,
   ...props
 }) {
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={container ?? resolvePortalContainer()}>
       <DropdownMenuPrimitive.Content
         data-slot="tiptap-dropdown-menu-content"
         sideOffset={sideOffset}

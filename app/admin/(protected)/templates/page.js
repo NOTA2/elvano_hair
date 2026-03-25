@@ -19,6 +19,7 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const SORT_OPTIONS = [
   { value: "updated_at", label: "최근 수정일" },
   { value: "name", label: "템플릿명" },
+  { value: "document_title", label: "문서 제목" },
   { value: "status", label: "상태" }
 ];
 
@@ -56,6 +57,7 @@ export default async function AdminTemplatesPage({ searchParams }) {
   const sortedTemplates = sortItems(templates, sortKey, direction, {
     updated_at: (template) => template.updated_at,
     name: (template) => template.name,
+    document_title: (template) => template.document_title,
     status: (template) => template.status
   });
   const pagination = paginateItems(
@@ -103,13 +105,13 @@ export default async function AdminTemplatesPage({ searchParams }) {
                     <input name="name" required />
                   </label>
                   <label className="field">
-                    <span className="field-label">설명</span>
-                    <input name="description" />
+                    <span className="field-label">문서 제목</span>
+                    <input name="document_title" required />
                   </label>
-                  <label className="field-full">
+                  <div className="field-full">
                     <span className="field-label">안내문 본문</span>
                     <RichTextEditor name="content" />
-                  </label>
+                  </div>
                   <label className="field">
                     <span className="field-label">상태</span>
                     <SelectField name="status" defaultValue="active">
@@ -136,7 +138,7 @@ export default async function AdminTemplatesPage({ searchParams }) {
                   <div className="list-row-copy">
                     <div className="list-row-title">{template.name}</div>
                     <div className="list-row-meta">
-                      {template.description || "설명 없음"}
+                      {template.document_title || "문서 제목 없음"}
                     </div>
                   </div>
                   <div className="list-row-actions">
@@ -158,16 +160,17 @@ export default async function AdminTemplatesPage({ searchParams }) {
                             <input name="name" defaultValue={template.name} required />
                           </label>
                           <label className="field">
-                            <span className="field-label">설명</span>
+                            <span className="field-label">문서 제목</span>
                             <input
-                              name="description"
-                              defaultValue={template.description || ""}
+                              name="document_title"
+                              defaultValue={template.document_title || ""}
+                              required
                             />
                           </label>
-                          <label className="field-full">
+                          <div className="field-full">
                             <span className="field-label">본문</span>
                             <RichTextEditor name="content" defaultValue={template.content} />
-                          </label>
+                          </div>
                           <label className="field">
                             <span className="field-label">상태</span>
                             <SelectField name="status" defaultValue={template.status}>

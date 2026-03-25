@@ -26,6 +26,18 @@ import {
 } from "@floating-ui/react";
 import "@/components/tiptap-ui-primitive/tooltip/tooltip.scss"
 
+function resolvePortalRoot(referenceElement) {
+  if (typeof document === "undefined") {
+    return undefined
+  }
+
+  return (
+    referenceElement?.closest?.("dialog") ||
+    document.querySelector("dialog[open]") ||
+    document.body
+  )
+}
+
 function useTooltip({
   initialOpen = false,
   placement = "top",
@@ -178,7 +190,13 @@ export const TooltipContent = forwardRef(function TooltipContent(
   )
 
   if (portal) {
-    return <FloatingPortal {...portalProps}>{content}</FloatingPortal>;
+    return (
+      <FloatingPortal
+        root={portalProps.root ?? resolvePortalRoot(context.refs.reference.current)}
+        {...portalProps}>
+        {content}
+      </FloatingPortal>
+    );
   }
 
   return content

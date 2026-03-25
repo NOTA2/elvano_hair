@@ -5,7 +5,9 @@ import { serializePublicDocument } from "@/lib/documents";
 import { notFound } from "next/navigation";
 
 export default async function PublicSignaturePage({ params }) {
-  const document = await getDocumentByToken(params.token);
+  const resolvedParams = await params;
+  const token = resolvedParams.token;
+  const document = await getDocumentByToken(token);
   const session = await getCurrentSession();
 
   if (!document) {
@@ -18,7 +20,7 @@ export default async function PublicSignaturePage({ params }) {
 
   return (
     <SignatureClient
-      token={params.token}
+      token={token}
       initialDocument={canBypassVerification ? serializePublicDocument(document) : null}
       initialReadOnly={canBypassVerification}
       bypassReason={bypassReason}

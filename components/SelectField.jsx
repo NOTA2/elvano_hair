@@ -32,7 +32,8 @@ export default function SelectField({
   onChange,
   name,
   placeholder = "선택",
-  disabled = false
+  disabled = false,
+  invalid = false
 }) {
   const instanceId = useId();
   const rootRef = useRef(null);
@@ -144,7 +145,7 @@ export default function SelectField({
   return (
     <div
       ref={rootRef}
-      className={`select-field ${isOpen ? "open" : ""} ${disabled ? "disabled" : ""} ${wrapperClassName}`.trim()}
+      className={`select-field ${isOpen ? "open" : ""} ${disabled ? "disabled" : ""} ${invalid ? "invalid" : ""} ${wrapperClassName}`.trim()}
     >
       {name ? <input type="hidden" name={name} value={currentValue} /> : null}
       <button
@@ -154,6 +155,7 @@ export default function SelectField({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={listboxId}
+        aria-invalid={invalid}
         onClick={() => {
           if (!disabled) {
             setIsOpen((open) => !open);

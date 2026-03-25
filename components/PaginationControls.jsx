@@ -39,10 +39,6 @@ export default function PaginationControls({
   pageParam = "page",
   searchParams
 }) {
-  if (totalPages <= 1) {
-    return null;
-  }
-
   const pages = buildPages(currentPage, totalPages);
 
   function hrefFor(page) {
