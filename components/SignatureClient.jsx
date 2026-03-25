@@ -1,6 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { normalizeTemplateContent } from "@/lib/templateContent";
+
+function formatPhoneNumber(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+
+  if (!digits) {
+    return "";
+  }
+
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  return String(value || "");
+}
 
 function resizeCanvas(canvas) {
   const ratio = window.devicePixelRatio || 1;
@@ -15,22 +34,41 @@ function resizeCanvas(canvas) {
   ctx.strokeStyle = "#222";
 }
 
-export default function SignatureClient({ token }) {
-  const [step, setStep] = useState("verify");
+function bypassMessage(reason) {
+  if (reason === "admin") {
+    return "관리자 열람 모드입니다. 휴대폰 번호 확인 없이 전체 문서를 바로 확인할 수 있습니다.";
+  }
+
+  if (reason === "signed") {
+    return "서명이 완료된 문서입니다. 휴대폰 번호 입력 없이 최종 문서와 서명을 바로 확인할 수 있습니다.";
+  }
+
+  return "";
+}
+
+export default function SignatureClient({
+  token,
+  initialDocument = null,
+  initialReadOnly = false,
+  bypassReason = null
+}) {
+  const [step, setStep] = useState(initialDocument ? "document" : "verify");
   const [phoneLast4, setPhoneLast4] = useState("");
   const [error, setError] = useState("");
-  const [documentData, setDocumentData] = useState(null);
+  const [notice, setNotice] = useState(bypassMessage(bypassReason));
+  const [documentData, setDocumentData] = useState(initialDocument);
   const [isSaving, setIsSaving] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(initialReadOnly);
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
 
   useEffect(() => {
-    if (step !== "document" || !canvasRef.current) {
+    if (step !== "document" || isReadOnly || !canvasRef.current) {
       return;
     }
 
     resizeCanvas(canvasRef.current);
-  }, [step]);
+  }, [step, isReadOnly]);
 
   function getPosition(event) {
     const canvas = canvasRef.current;
@@ -92,6 +130,8 @@ export default function SignatureClient({ token }) {
     }
 
     setDocumentData(data.document);
+    setIsReadOnly(false);
+    setNotice("");
     setStep("document");
   }
 
@@ -116,7 +156,9 @@ export default function SignatureClient({ token }) {
     }
 
     setDocumentData(data.document);
-    setStep("done");
+    setIsReadOnly(true);
+    setNotice("서명이 저장되었습니다. 아래에서 최종 문서와 서명을 바로 확인할 수 있습니다.");
+    setStep("document");
   }
 
   if (step === "verify") {
@@ -150,46 +192,43 @@ export default function SignatureClient({ token }) {
     return null;
   }
 
-  if (step === "done") {
-    return (
-      <div className="doc-page">
-        <div className="verify-box hero-card">
-          <div className="brand-kicker">완료</div>
-          <h1 className="verify-title" style={{ fontSize: "44px" }}>
-            서명이 저장되었습니다
-          </h1>
-          <p className="muted">담당자가 확인할 수 있도록 안전하게 저장했습니다.</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="doc-page">
       <div className="doc-shell">
+        {notice ? <div className="doc-notice">{notice}</div> : null}
+
         <div className="doc-header">
           <div className="doc-branch">엘바노헤어 {documentData.branch_name}</div>
           <h1 className="doc-title">{documentData.document_title}</h1>
         </div>
 
-        <div className="doc-date">{documentData.document_date}</div>
-
-        <div className="doc-info-grid">
-          <div className="info-card">
-            <span className="field-label">고객 이름</span>
-            <strong>{documentData.customer_name}</strong>
+        <div className="doc-summary-grid">
+          <div className="doc-summary-card">
+            <div className="doc-summary-label">성함</div>
+            <div className="doc-summary-value">{documentData.customer_name || "-"}</div>
           </div>
-          <div className="info-card">
-            <span className="field-label">휴대폰 뒷자리</span>
-            <strong>{documentData.phone_last4}</strong>
+          <div className="doc-summary-card">
+            <div className="doc-summary-label">연락처</div>
+            <div className="doc-summary-value">
+              {formatPhoneNumber(documentData.recipient_phone) || documentData.phone_last4 || "-"}
+            </div>
           </div>
-          <div className="info-card">
-            <span className="field-label">담당 디자이너</span>
-            <strong>{documentData.designer_name}</strong>
+          <div className="doc-summary-card">
+            <div className="doc-summary-label">일자</div>
+            <div className="doc-summary-value">{documentData.document_date || "-"}</div>
+          </div>
+          <div className="doc-summary-card">
+            <div className="doc-summary-label">담당 디자이너</div>
+            <div className="doc-summary-value">{documentData.designer_name || "-"}</div>
           </div>
         </div>
 
-        <div className="doc-content">{documentData.rendered_content}</div>
+        <div
+          className="doc-content"
+          dangerouslySetInnerHTML={{
+            __html: normalizeTemplateContent(documentData.rendered_content)
+          }}
+        />
 
         <div className="doc-consent">
           담당자로부터 위 내용에 대하여 충분히 설명을 들었으며, 위 내용에 동의합니다.
@@ -199,26 +238,55 @@ export default function SignatureClient({ token }) {
         </div>
 
         <div className="signature-wrap">
-          <h2 style={{ textAlign: "center", fontSize: "44px" }}>서명하기</h2>
-          <canvas
-            ref={canvasRef}
-            className="signature-canvas"
-            onMouseDown={startDraw}
-            onMouseMove={draw}
-            onMouseUp={stopDraw}
-            onMouseLeave={stopDraw}
-            onTouchStart={startDraw}
-            onTouchMove={draw}
-            onTouchEnd={stopDraw}
-          />
-          <div className="signature-actions">
-            <button className="secondary" type="button" onClick={clearSignature}>
-              전체 지우기
-            </button>
-            <button type="button" onClick={saveSignature} disabled={isSaving}>
-              {isSaving ? "저장 중..." : "서명 저장"}
-            </button>
-          </div>
+          <h2 style={{ textAlign: "center", fontSize: "44px" }}>
+            {documentData.signature_data_url ? "서명 확인" : "서명하기"}
+          </h2>
+
+          {isReadOnly ? (
+            <div className="signature-readonly">
+              {documentData.signature_data_url ? (
+                <>
+                  <img
+                    className="signature-preview"
+                    src={documentData.signature_data_url}
+                    alt="고객 서명"
+                  />
+                  {documentData.signed_at ? (
+                    <div className="signature-meta">
+                      서명 완료일 {String(documentData.signed_at).slice(0, 10)}
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <div className="signature-empty-state">
+                  아직 고객 서명이 저장되지 않은 문서입니다.
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <canvas
+                ref={canvasRef}
+                className="signature-canvas"
+                onMouseDown={startDraw}
+                onMouseMove={draw}
+                onMouseUp={stopDraw}
+                onMouseLeave={stopDraw}
+                onTouchStart={startDraw}
+                onTouchMove={draw}
+                onTouchEnd={stopDraw}
+              />
+              <div className="signature-actions">
+                <button className="secondary" type="button" onClick={clearSignature}>
+                  전체 지우기
+                </button>
+                <button type="button" onClick={saveSignature} disabled={isSaving}>
+                  {isSaving ? "저장 중..." : "서명 저장"}
+                </button>
+              </div>
+            </>
+          )}
+
           {error ? (
             <p style={{ color: "var(--danger)", textAlign: "center" }}>{error}</p>
           ) : null}
@@ -227,4 +295,3 @@ export default function SignatureClient({ token }) {
     </div>
   );
 }
-

@@ -1,8 +1,7 @@
 import { headers } from "next/headers";
 import {
   canManageBranchSettings,
-  getRouteSession,
-  isBranchMaster
+  getRouteSession
 } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/config";
 import {
@@ -11,9 +10,20 @@ import {
   getTemplateById,
   updateTemplate
 } from "@/lib/db";
+import { normalizeTemplateContent, sanitizeTemplateContent } from "@/lib/templateContent";
 
 function redirectBack(headerStore) {
   return Response.redirect(headerStore.get("referer") || "/admin/templates", 302);
+}
+
+function resolveTemplateStatus(formData) {
+  const status = String(formData.get("status") || "");
+
+  if (status === "active" || status === "inactive" || status === "deleted") {
+    return status;
+  }
+
+  return formData.get("is_active") === "1" ? "active" : "inactive";
 }
 
 export async function POST(request) {
@@ -24,58 +34,31 @@ export async function POST(request) {
   const headerStore = await headers();
   const formData = await request.formData();
   const intent = formData.get("intent");
+  const normalizedContent = normalizeTemplateContent(
+    sanitizeTemplateContent(formData.get("content"))
+  );
 
   if (intent === "create") {
-    const resolvedBranchId = isBranchMaster(session)
-      ? session.branch_id
-      : Number(formData.get("branch_id"));
-
-    if (!resolvedBranchId) {
-      return redirectBack(headerStore);
-    }
-
     await createTemplate({
-      branch_id: resolvedBranchId,
       name: formData.get("name"),
-      description: formData.get("description"),
-      content: formData.get("content"),
-      bizgo_template_code: formData.get("bizgo_template_code"),
-      bizgo_sender_key: formData.get("bizgo_sender_key"),
-      bizgo_message: formData.get("bizgo_message"),
-      bizgo_button_name: formData.get("bizgo_button_name"),
-      is_active: formData.get("is_active") === "1"
+      document_title: formData.get("document_title"),
+      content: normalizedContent,
+      status: resolveTemplateStatus(formData)
     });
   }
 
   if (intent === "update") {
-    const resolvedBranchId = isBranchMaster(session)
-      ? session.branch_id
-      : Number(formData.get("branch_id"));
-
-    if (!resolvedBranchId) {
-      return redirectBack(headerStore);
-    }
-
     const template = await getTemplateById(Number(formData.get("id")));
 
     if (!template) {
       return redirectBack(headerStore);
     }
 
-    if (isBranchMaster(session) && Number(template.branch_id) !== Number(session.branch_id)) {
-      return redirectBack(headerStore);
-    }
-
     await updateTemplate(Number(formData.get("id")), {
-      branch_id: resolvedBranchId,
       name: formData.get("name"),
-      description: formData.get("description"),
-      content: formData.get("content"),
-      bizgo_template_code: formData.get("bizgo_template_code"),
-      bizgo_sender_key: formData.get("bizgo_sender_key"),
-      bizgo_message: formData.get("bizgo_message"),
-      bizgo_button_name: formData.get("bizgo_button_name"),
-      is_active: formData.get("is_active") === "1"
+      document_title: formData.get("document_title"),
+      content: normalizedContent,
+      status: resolveTemplateStatus(formData)
     });
   }
 
@@ -83,10 +66,6 @@ export async function POST(request) {
     const template = await getTemplateById(Number(formData.get("id")));
 
     if (!template) {
-      return redirectBack(headerStore);
-    }
-
-    if (isBranchMaster(session) && Number(template.branch_id) !== Number(session.branch_id)) {
       return redirectBack(headerStore);
     }
 

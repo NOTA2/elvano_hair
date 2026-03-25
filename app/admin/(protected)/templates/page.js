@@ -1,176 +1,200 @@
+import ListQueryControls from "@/components/ListQueryControls";
+import ModalDialog from "@/components/ModalDialog";
+import PaginationControls from "@/components/PaginationControls";
+import RichTextEditor from "@/components/RichTextEditor";
+import SelectField from "@/components/SelectField";
 import { requireBranchManagerSession } from "@/lib/auth";
-import { listBranches, listTemplates } from "@/lib/db";
-import { BRANCH_MASTER_ROLE } from "@/lib/roles";
+import { listTemplates } from "@/lib/db";
+import {
+  paginateItems,
+  parseDirection,
+  parsePage,
+  parsePageSize,
+  parseSort,
+  sortItems
+} from "@/lib/pagination";
 
-function branchField(session, branches, defaultBranchId) {
-  if (session.role === BRANCH_MASTER_ROLE) {
-    return (
-      <>
-        <input type="hidden" name="branch_id" value={session.branch_id} />
-        <label className="field">
-          <span className="field-label">지점</span>
-          <input value={session.branch_name || ""} disabled readOnly />
-        </label>
-      </>
-    );
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+const SORT_OPTIONS = [
+  { value: "updated_at", label: "최근 수정일" },
+  { value: "name", label: "템플릿명" },
+  { value: "document_title", label: "문서 제목" },
+  { value: "status", label: "상태" }
+];
+
+function templateStatusLabel(template) {
+  if (template.status === "deleted") {
+    return "삭제";
   }
 
-  return (
-    <label className="field">
-      <span className="field-label">지점</span>
-      <select name="branch_id" defaultValue={defaultBranchId || ""} required>
-        <option value="">선택</option>
-        {branches.map((branch) => (
-          <option key={branch.id} value={branch.id}>
-            {branch.name}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
+  return template.is_active ? "사용 중" : "중지";
 }
 
-export default async function AdminTemplatesPage() {
-  const session = await requireBranchManagerSession();
-  const branchId = session.role === BRANCH_MASTER_ROLE ? session.branch_id : undefined;
-  const templates = await listTemplates({ branchId });
-  const branches = await listBranches({ activeOnly: true, branchId });
+function templateStatusClass(template) {
+  if (template.status === "deleted") {
+    return "soft";
+  }
+
+  return template.is_active ? "positive" : "neutral";
+}
+
+export default async function AdminTemplatesPage({ searchParams }) {
+  await requireBranchManagerSession();
+  const resolvedSearchParams = await searchParams;
+  const templates = await listTemplates({ includeDeleted: true });
+  const activeCount = templates.filter((template) => template.status === "active").length;
+  const inactiveCount = templates.filter((template) => template.status === "inactive").length;
+  const deletedCount = templates.filter((template) => template.status === "deleted").length;
+  const pageSize = parsePageSize(
+    resolvedSearchParams,
+    "pageSize",
+    PAGE_SIZE_OPTIONS,
+    DEFAULT_PAGE_SIZE
+  );
+  const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
+  const direction = parseDirection(resolvedSearchParams, "direction", "desc");
+  const sortedTemplates = sortItems(templates, sortKey, direction, {
+    updated_at: (template) => template.updated_at,
+    name: (template) => template.name,
+    document_title: (template) => template.document_title,
+    status: (template) => template.status
+  });
+  const pagination = paginateItems(
+    sortedTemplates,
+    parsePage(resolvedSearchParams),
+    pageSize
+  );
 
   return (
-    <div>
+    <div className="section-stack">
       <section className="panel">
-        <h2>템플릿 등록</h2>
-        <p className="muted">
-          본문에서는 <span className="code">{`{{branch_name}}`}</span>,{" "}
-          <span className="code">{`{{document_title}}`}</span>,{" "}
-          <span className="code">{`{{date}}`}</span>,{" "}
-          <span className="code">{`{{customer_name}}`}</span>,{" "}
-          <span className="code">{`{{phone_last4}}`}</span>,{" "}
-          <span className="code">{`{{designer_name}}`}</span>,{" "}
-          <span className="code">{`{{document_url}}`}</span> 치환값을 사용할 수 있습니다.
-        </p>
-        <form action="/api/admin/templates" method="post">
-          <input type="hidden" name="intent" value="create" />
-          <div className="form-grid">
-            {branchField(session, branches)}
-            <label className="field">
-              <span className="field-label">템플릿명</span>
-              <input name="name" required />
-            </label>
-            <label className="field">
-              <span className="field-label">설명</span>
-              <input name="description" />
-            </label>
-            <label className="field">
-              <span className="field-label">Bizgo 템플릿 코드</span>
-              <input name="bizgo_template_code" />
-            </label>
-            <label className="field">
-              <span className="field-label">Bizgo 발신 프로필 키</span>
-              <input name="bizgo_sender_key" />
-            </label>
-            <label className="field-full">
-              <span className="field-label">안내문 본문</span>
-              <textarea name="content" required />
-            </label>
-            <label className="field-full">
-              <span className="field-label">알림톡 메시지</span>
-              <textarea name="bizgo_message" />
-            </label>
-            <label className="field">
-              <span className="field-label">알림톡 버튼명</span>
-              <input name="bizgo_button_name" placeholder="서명하기" />
-            </label>
-            <label className="field">
-              <span className="field-label">사용 여부</span>
-              <select name="is_active" defaultValue="1">
-                <option value="1">사용</option>
-                <option value="0">중지</option>
-              </select>
-            </label>
+        <div className="panel-head">
+          <div>
+            <div className="panel-eyebrow">Document Template Studio</div>
+            <h2 className="panel-title">문서 템플릿 관리</h2>
+            <p className="panel-copy">
+              등록된 문서 템플릿 목록을 먼저 보고, 추가와 수정은 모달에서 처리합니다.
+              안내문 본문은 고객 문서 발급 시 치환값으로 완성됩니다.
+            </p>
           </div>
-          <div className="form-actions" style={{ marginTop: 16 }}>
-            <button type="submit">템플릿 저장</button>
-          </div>
-        </form>
-      </section>
-
-      <section className="panel">
-        <h2>등록된 템플릿</h2>
-        {templates.length === 0 ? (
-          <div className="empty-state">등록된 템플릿이 없습니다.</div>
-        ) : (
-          templates.map((template) => (
-            <div key={template.id} className="panel" style={{ padding: 18 }}>
+          <div className="panel-actions">
+            <div className="panel-kpi-row">
+              <span className="metric-pill">전체 {templates.length}</span>
+              <span className="metric-pill">활성 {activeCount}</span>
+              <span className="metric-pill">중지 {inactiveCount}</span>
+              <span className="metric-pill">삭제 {deletedCount}</span>
+            </div>
+            <ListQueryControls
+              currentPageSize={pageSize}
+              currentSort={sortKey}
+              currentDirection={direction}
+              sortOptions={SORT_OPTIONS}
+            />
+            <ModalDialog
+              title="문서 템플릿 추가"
+              description="새 안내문 템플릿을 등록합니다. 본문은 문서 발급 시 실제 고객 데이터로 치환됩니다."
+              triggerLabel="템플릿 추가"
+              size="wide"
+            >
               <form action="/api/admin/templates" method="post">
-                <input type="hidden" name="intent" value="update" />
-                <input type="hidden" name="id" value={template.id} />
+                <input type="hidden" name="intent" value="create" />
                 <div className="form-grid">
-                  {branchField(session, branches, template.branch_id)}
                   <label className="field">
                     <span className="field-label">템플릿명</span>
-                    <input name="name" defaultValue={template.name} required />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">설명</span>
-                    <input name="description" defaultValue={template.description || ""} />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">Bizgo 템플릿 코드</span>
-                    <input
-                      name="bizgo_template_code"
-                      defaultValue={template.bizgo_template_code || ""}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">Bizgo 발신키</span>
-                    <input
-                      name="bizgo_sender_key"
-                      defaultValue={template.bizgo_sender_key || ""}
-                    />
+                    <input name="name" required />
                   </label>
                   <label className="field-full">
-                    <span className="field-label">본문</span>
-                    <textarea name="content" defaultValue={template.content} required />
+                    <span className="field-label">문서 제목</span>
+                    <input name="document_title" required />
                   </label>
-                  <label className="field-full">
-                    <span className="field-label">알림톡 메시지</span>
-                    <textarea
-                      name="bizgo_message"
-                      defaultValue={template.bizgo_message || ""}
-                    />
-                  </label>
+                  <div className="field-full">
+                    <span className="field-label">안내문 본문</span>
+                    <RichTextEditor name="content" />
+                  </div>
                   <label className="field">
-                    <span className="field-label">알림톡 버튼명</span>
-                    <input
-                      name="bizgo_button_name"
-                      defaultValue={template.bizgo_button_name || ""}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">사용 여부</span>
-                    <select name="is_active" defaultValue={template.is_active ? "1" : "0"}>
-                      <option value="1">사용</option>
-                      <option value="0">중지</option>
-                    </select>
+                    <span className="field-label">상태</span>
+                    <SelectField name="status" defaultValue="active">
+                      <option value="active">사용</option>
+                      <option value="inactive">중지</option>
+                    </SelectField>
                   </label>
                 </div>
-                <div className="form-actions" style={{ marginTop: 16 }}>
-                  <button type="submit">수정 저장</button>
+                <div className="form-actions admin-form-actions">
+                  <button type="submit">템플릿 저장</button>
                 </div>
               </form>
-              <div className="muted" style={{ marginTop: 8 }}>
-                지점: {template.branch_name || "-"}
-              </div>
-              <form action="/api/admin/templates" method="post" style={{ marginTop: 8 }}>
-                <input type="hidden" name="intent" value="delete" />
-                <input type="hidden" name="id" value={template.id} />
-                <button type="submit" className="danger">
-                  삭제
-                </button>
-              </form>
+            </ModalDialog>
+          </div>
+        </div>
+
+        {pagination.items.length === 0 ? (
+          <div className="empty-state">등록된 템플릿이 없습니다.</div>
+        ) : (
+          <>
+            <div className="stack-list">
+              {pagination.items.map((template) => (
+                <div key={template.id} className="list-row-card">
+                  <div className="list-row-copy">
+                    <div className="list-row-title">{template.name}</div>
+                    <div className="list-row-meta">
+                      {template.document_title || "문서 제목 없음"}
+                    </div>
+                  </div>
+                  <div className="list-row-actions">
+                    <span className={`status-chip ${templateStatusClass(template)}`}>
+                      {templateStatusLabel(template)}
+                    </span>
+                    <ModalDialog
+                      title={`${template.name} 수정`}
+                      description="문서 템플릿 본문과 상태를 수정할 수 있습니다. 삭제 상태로 두면 새 문서 발급에는 나오지 않지만 기존 문서는 그대로 유지됩니다."
+                      triggerLabel="수정"
+                      size="wide"
+                    >
+                      <form action="/api/admin/templates" method="post">
+                        <input type="hidden" name="intent" value="update" />
+                        <input type="hidden" name="id" value={template.id} />
+                        <div className="form-grid">
+                          <label className="field">
+                            <span className="field-label">템플릿명</span>
+                            <input name="name" defaultValue={template.name} required />
+                          </label>
+                          <label className="field-full">
+                            <span className="field-label">문서 제목</span>
+                            <input
+                              name="document_title"
+                              defaultValue={template.document_title || ""}
+                              required
+                            />
+                          </label>
+                          <div className="field-full">
+                            <span className="field-label">본문</span>
+                            <RichTextEditor name="content" defaultValue={template.content} />
+                          </div>
+                          <label className="field">
+                            <span className="field-label">상태</span>
+                            <SelectField name="status" defaultValue={template.status}>
+                              <option value="active">사용</option>
+                              <option value="inactive">중지</option>
+                              <option value="deleted">삭제</option>
+                            </SelectField>
+                          </label>
+                        </div>
+                        <div className="form-actions admin-form-actions">
+                          <button type="submit">수정 저장</button>
+                        </div>
+                      </form>
+                    </ModalDialog>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))
+            <PaginationControls
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              searchParams={resolvedSearchParams}
+            />
+          </>
         )}
       </section>
     </div>

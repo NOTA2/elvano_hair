@@ -34,6 +34,7 @@ export async function POST(request) {
 
     await createBranch({
       name: formData.get("name"),
+      phone: formData.get("phone"),
       description: formData.get("description"),
       is_active: formData.get("is_active") === "1"
     });
@@ -53,6 +54,7 @@ export async function POST(request) {
 
     await updateBranch(branchId, {
       name: formData.get("name"),
+      phone: formData.get("phone"),
       description: formData.get("description"),
       is_active: formData.get("is_active") === "1"
     });

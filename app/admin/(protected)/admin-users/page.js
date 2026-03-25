@@ -1,4 +1,12 @@
-import { requireIntegratedMasterSession } from "@/lib/auth";
+import AdminUserRoleForm from "@/components/AdminUserRoleForm";
+import ListQueryControls from "@/components/ListQueryControls";
+import ModalDialog from "@/components/ModalDialog";
+import PaginationControls from "@/components/PaginationControls";
+import {
+  isBranchMaster,
+  isIntegratedMaster,
+  requireBranchManagerSession
+} from "@/lib/auth";
 import { MASTER_KAKAO_ID } from "@/lib/config";
 import {
   listAdminUsers,
@@ -6,207 +14,321 @@ import {
   listLoginAttempts
 } from "@/lib/db";
 import {
+  paginateItems,
+  parseDirection,
+  parsePage,
+  parsePageSize,
+  parseSort,
+  sortItems
+} from "@/lib/pagination";
+import {
   ADMIN_ROLE,
   BRANCH_MASTER_ROLE,
+  INTEGRATED_MASTER_ROLE,
   ROLE_LABELS
 } from "@/lib/roles";
 
-export default async function AdminUsersPage() {
-  await requireIntegratedMasterSession();
-  const users = await listAdminUsers();
-  const branches = await listBranches({ activeOnly: true });
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+
+const PENDING_SORT_OPTIONS = [
+  { value: "last_attempt_at", label: "최근 시도일" },
+  { value: "attempt_count", label: "시도 횟수" },
+  { value: "nickname", label: "닉네임" },
+  { value: "kakao_user_id", label: "카카오 ID" }
+];
+
+const USER_SORT_OPTIONS = [
+  { value: "updated_at", label: "최근 수정일" },
+  { value: "role", label: "권한" },
+  { value: "nickname", label: "닉네임" },
+  { value: "kakao_user_id", label: "카카오 ID" },
+  { value: "branch_name", label: "지점" }
+];
+
+function roleOptionsForSession(session) {
+  if (isIntegratedMaster(session)) {
+    return [INTEGRATED_MASTER_ROLE, BRANCH_MASTER_ROLE, ADMIN_ROLE];
+  }
+
+  if (isBranchMaster(session)) {
+    return [BRANCH_MASTER_ROLE, ADMIN_ROLE];
+  }
+
+  return [];
+}
+
+function buildSystemMaster(loginAttempts) {
+  const matchingAttempt = loginAttempts.find(
+    (attempt) => String(attempt.kakao_user_id) === String(MASTER_KAKAO_ID)
+  );
+
+  return {
+    id: `system:${MASTER_KAKAO_ID}`,
+    kakao_user_id: String(MASTER_KAKAO_ID),
+    nickname: matchingAttempt?.nickname || "하드코딩 통합 마스터",
+    role: INTEGRATED_MASTER_ROLE,
+    branch_id: null,
+    branch_name: null,
+    memo: "시스템 고정 계정",
+    updated_at: matchingAttempt?.last_attempt_at || null,
+    is_system_master: true
+  };
+}
+
+export default async function AdminUsersPage({ searchParams }) {
+  const session = await requireBranchManagerSession();
+  const resolvedSearchParams = await searchParams;
+  const viewerIsIntegratedMaster = isIntegratedMaster(session);
+  const viewerIsBranchMaster = isBranchMaster(session);
+  const branchId = viewerIsBranchMaster ? session.branch_id : undefined;
+  const branches = await listBranches({ activeOnly: true, branchId });
   const loginAttempts = await listLoginAttempts();
-  const userMap = new Map(users.map((user) => [user.kakao_user_id, user]));
+  const storedUsers = await listAdminUsers({ branchId });
+  const allowedRoles = roleOptionsForSession(session);
+  const userMap = new Map(storedUsers.map((user) => [String(user.kakao_user_id), user]));
   const pendingLoginAttempts = loginAttempts.filter(
     (attempt) =>
       attempt.kakao_user_id &&
-      attempt.kakao_user_id !== MASTER_KAKAO_ID &&
-      !userMap.has(attempt.kakao_user_id)
+      String(attempt.kakao_user_id) !== String(MASTER_KAKAO_ID) &&
+      !userMap.has(String(attempt.kakao_user_id))
+  );
+  const allowedUsers = viewerIsIntegratedMaster
+    ? [buildSystemMaster(loginAttempts), ...storedUsers.filter((user) => String(user.kakao_user_id) !== String(MASTER_KAKAO_ID))]
+    : storedUsers;
+  const branchMasterCount = allowedUsers.filter((user) => user.role === BRANCH_MASTER_ROLE).length;
+
+  const pendingSort = parseSort(
+    resolvedSearchParams,
+    "pendingSort",
+    "last_attempt_at"
+  );
+  const pendingDirection = parseDirection(
+    resolvedSearchParams,
+    "pendingDirection",
+    "desc"
+  );
+  const pendingPageSize = parsePageSize(
+    resolvedSearchParams,
+    "pendingPageSize",
+    PAGE_SIZE_OPTIONS,
+    DEFAULT_PAGE_SIZE
+  );
+  const sortedPending = sortItems(
+    pendingLoginAttempts,
+    pendingSort,
+    pendingDirection,
+    {
+      last_attempt_at: (item) => item.last_attempt_at,
+      attempt_count: (item) => Number(item.attempt_count || 0),
+      nickname: (item) => item.nickname || "",
+      kakao_user_id: (item) => item.kakao_user_id
+    }
+  );
+  const pendingPagination = paginateItems(
+    sortedPending,
+    parsePage(resolvedSearchParams, "pendingPage"),
+    pendingPageSize
+  );
+
+  const usersSort = parseSort(resolvedSearchParams, "usersSort", "updated_at");
+  const usersDirection = parseDirection(
+    resolvedSearchParams,
+    "usersDirection",
+    "desc"
+  );
+  const usersPageSize = parsePageSize(
+    resolvedSearchParams,
+    "usersPageSize",
+    PAGE_SIZE_OPTIONS,
+    DEFAULT_PAGE_SIZE
+  );
+  const sortedUsers = sortItems(
+    allowedUsers,
+    usersSort,
+    usersDirection,
+    {
+      updated_at: (item) => item.updated_at,
+      role: (item) => ROLE_LABELS[item.role] || item.role,
+      nickname: (item) => item.nickname || "",
+      kakao_user_id: (item) => item.kakao_user_id,
+      branch_name: (item) => item.branch_name || ""
+    }
+  );
+  const usersPagination = paginateItems(
+    sortedUsers,
+    parsePage(resolvedSearchParams, "usersPage"),
+    usersPageSize
   );
 
   return (
-    <div>
+    <div className="section-stack">
       <section className="panel">
-        <h2>권한 직접 추가</h2>
-        <p className="muted">
-          통합 마스터 카카오 ID는 <span className="code">{MASTER_KAKAO_ID}</span> 로 고정됩니다.
-        </p>
-        <form action="/api/admin/admin-users" method="post">
-          <input type="hidden" name="intent" value="create" />
-          <div className="form-grid">
-            <label className="field">
-              <span className="field-label">카카오 사용자 ID</span>
-              <input name="kakao_user_id" required />
-            </label>
-            <label className="field">
-              <span className="field-label">닉네임</span>
-              <input name="nickname" />
-            </label>
-            <label className="field">
-              <span className="field-label">권한</span>
-              <select name="role" defaultValue={ADMIN_ROLE}>
-                <option value={ADMIN_ROLE}>{ROLE_LABELS[ADMIN_ROLE]}</option>
-                <option value={BRANCH_MASTER_ROLE}>{ROLE_LABELS[BRANCH_MASTER_ROLE]}</option>
-              </select>
-            </label>
-            <label className="field">
-              <span className="field-label">지점</span>
-              <select name="branch_id" defaultValue="">
-                <option value="">선택 안 함</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field-full">
-              <span className="field-label">메모</span>
-              <textarea name="memo" />
-            </label>
+        <div className="panel-head">
+          <div>
+            <div className="panel-eyebrow">Pending Approval</div>
+            <h2 className="panel-title">로그인 시도 계정</h2>
+            <p className="panel-copy">
+              권한이 없는 카카오 로그인 시도 계정을 목록으로 보고, 모달에서 권한을
+              부여합니다.
+            </p>
           </div>
-          <div className="form-actions" style={{ marginTop: 16 }}>
-            <button type="submit">권한 저장</button>
+          <div className="panel-actions">
+            <div className="panel-kpi-row">
+              <span className="metric-pill">권한 대기 {pendingLoginAttempts.length}</span>
+              <span className="metric-pill">허용 관리자 {allowedUsers.length}</span>
+              <span className="metric-pill">지점 마스터 {branchMasterCount}</span>
+            </div>
+            <ListQueryControls
+              pageParam="pendingPage"
+              pageSizeParam="pendingPageSize"
+              sortParam="pendingSort"
+              directionParam="pendingDirection"
+              currentPageSize={pendingPageSize}
+              currentSort={pendingSort}
+              currentDirection={pendingDirection}
+              sortOptions={PENDING_SORT_OPTIONS}
+            />
           </div>
-        </form>
-      </section>
-
-      <section className="panel">
-        <h2>로그인 시도 계정</h2>
-        {pendingLoginAttempts.length === 0 ? (
+        </div>
+        {pendingPagination.items.length === 0 ? (
           <div className="empty-state">권한 대기 중인 로그인 시도 계정이 없습니다.</div>
         ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>카카오 ID</th>
-                  <th>닉네임</th>
-                  <th>시도 횟수</th>
-                  <th>최근 상태</th>
-                  <th>현재 권한</th>
-                  <th>권한 부여</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingLoginAttempts.map((attempt) => {
-                  return (
-                    <tr key={attempt.kakao_user_id}>
-                      <td>{attempt.kakao_user_id}</td>
-                      <td>{attempt.nickname || "-"}</td>
-                      <td>{attempt.attempt_count}</td>
-                      <td>
-                        <div>{attempt.last_status}</div>
-                        <div className="muted">
-                          {String(attempt.last_attempt_at).slice(0, 16).replace("T", " ")}
-                        </div>
-                      </td>
-                      <td>
-                        -
-                      </td>
-                      <td>
-                        <form action="/api/admin/admin-users" method="post">
-                          <input type="hidden" name="intent" value="create" />
-                          <input
-                            type="hidden"
-                            name="kakao_user_id"
-                            value={attempt.kakao_user_id}
-                          />
-                          <input
-                            type="hidden"
-                            name="nickname"
-                            value={attempt.nickname || ""}
-                          />
-                          <div className="inline-actions">
-                            <select name="role" defaultValue={ADMIN_ROLE}>
-                              <option value={ADMIN_ROLE}>{ROLE_LABELS[ADMIN_ROLE]}</option>
-                              <option value={BRANCH_MASTER_ROLE}>
-                                {ROLE_LABELS[BRANCH_MASTER_ROLE]}
-                              </option>
-                            </select>
-                            <select name="branch_id" defaultValue="">
-                              <option value="">선택 안 함</option>
-                              {branches.map((branch) => (
-                                <option key={branch.id} value={branch.id}>
-                                  {branch.name}
-                                </option>
-                              ))}
-                            </select>
-                            <button type="submit">권한 저장</button>
-                          </div>
-                        </form>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="stack-list">
+              {pendingPagination.items.map((attempt) => (
+                <div key={attempt.kakao_user_id} className="list-row-card">
+                  <div className="list-row-copy">
+                    <div className="list-row-title">{attempt.nickname || "-"}</div>
+                    <div className="list-row-meta">{attempt.kakao_user_id}</div>
+                    <div className="list-row-meta">
+                      시도 {attempt.attempt_count}회 · 최근 {String(attempt.last_attempt_at).slice(0, 16).replace("T", " ")}
+                    </div>
+                  </div>
+                  <div className="list-row-actions">
+                    <span className="status-chip soft">{attempt.last_status}</span>
+                    <ModalDialog
+                      title={`${attempt.nickname || attempt.kakao_user_id} 권한 부여`}
+                      description="역할과 지점을 선택해 관리자 권한을 부여합니다."
+                      triggerLabel="권한 부여"
+                    >
+                      <AdminUserRoleForm
+                        action="/api/admin/admin-users"
+                        intent="create"
+                        kakaoUserId={attempt.kakao_user_id}
+                        nickname={attempt.nickname || ""}
+                        branches={branches}
+                        availableRoles={allowedRoles}
+                        fixedBranchId={viewerIsBranchMaster ? session.branch_id : ""}
+                        fixedBranchName={viewerIsBranchMaster ? session.branch_name || "" : ""}
+                        submitLabel="권한 저장"
+                      />
+                    </ModalDialog>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <PaginationControls
+              currentPage={pendingPagination.currentPage}
+              totalPages={pendingPagination.totalPages}
+              pageParam="pendingPage"
+              searchParams={resolvedSearchParams}
+            />
+          </>
         )}
       </section>
 
       <section className="panel">
-        <h2>허용된 관리자</h2>
-        {users.length === 0 ? (
+        <div className="panel-head">
+          <div>
+            <div className="panel-eyebrow">Allowed Admins</div>
+            <h2 className="panel-title">허용된 관리자</h2>
+            <p className="panel-copy">
+              허용된 관리자 목록을 보고 모달에서 권한과 지점을 수정합니다.
+            </p>
+          </div>
+          <div className="panel-actions">
+            <ListQueryControls
+              pageParam="usersPage"
+              pageSizeParam="usersPageSize"
+              sortParam="usersSort"
+              directionParam="usersDirection"
+              currentPageSize={usersPageSize}
+              currentSort={usersSort}
+              currentDirection={usersDirection}
+              sortOptions={USER_SORT_OPTIONS}
+            />
+          </div>
+        </div>
+        {usersPagination.items.length === 0 ? (
           <div className="empty-state">등록된 허용 관리자가 없습니다.</div>
         ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>카카오 ID</th>
-                  <th>닉네임</th>
-                  <th>권한</th>
-                  <th>지점</th>
-                  <th>메모</th>
-                  <th>수정</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user.id}>
-                    <td>{user.kakao_user_id}</td>
-                    <td>{user.nickname || "-"}</td>
-                    <td>{ROLE_LABELS[user.role] || user.role}</td>
-                    <td>{user.branch_name || "-"}</td>
-                    <td>{user.memo || "-"}</td>
-                    <td>
-                      <form action="/api/admin/admin-users" method="post">
-                        <input type="hidden" name="intent" value="create" />
-                        <input type="hidden" name="kakao_user_id" value={user.kakao_user_id} />
-                        <input type="hidden" name="nickname" value={user.nickname || ""} />
-                        <input type="hidden" name="memo" value={user.memo || ""} />
-                        <div className="inline-actions">
-                          <select name="role" defaultValue={user.role}>
-                            <option value={ADMIN_ROLE}>{ROLE_LABELS[ADMIN_ROLE]}</option>
-                            <option value={BRANCH_MASTER_ROLE}>
-                              {ROLE_LABELS[BRANCH_MASTER_ROLE]}
-                            </option>
-                          </select>
-                          <select name="branch_id" defaultValue={user.branch_id || ""}>
-                            <option value="">선택 안 함</option>
-                            {branches.map((branch) => (
-                              <option key={branch.id} value={branch.id}>
-                                {branch.name}
-                              </option>
-                            ))}
-                          </select>
-                          <button type="submit">저장</button>
-                        </div>
-                      </form>
-                      <form action="/api/admin/admin-users" method="post" style={{ marginTop: 8 }}>
-                        <input type="hidden" name="intent" value="delete" />
-                        <input type="hidden" name="id" value={user.id} />
-                        <button type="submit" className="danger">
-                          제거
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="stack-list">
+              {usersPagination.items.map((user) => (
+                <div key={user.id} className="list-row-card">
+                  <div className="list-row-copy">
+                    <div className="list-row-title">{user.nickname || user.kakao_user_id}</div>
+                    <div className="list-row-meta">{user.kakao_user_id}</div>
+                    <div className="list-row-meta">
+                      {ROLE_LABELS[user.role] || user.role}
+                      {user.branch_name ? ` · ${user.branch_name}` : ""}
+                      {user.memo ? ` · ${user.memo}` : ""}
+                    </div>
+                  </div>
+                  <div className="list-row-actions">
+                    <span className="status-chip brand">
+                      {ROLE_LABELS[user.role] || user.role}
+                    </span>
+                    {user.branch_name ? (
+                      <span className="status-chip soft">{user.branch_name}</span>
+                    ) : null}
+                    {user.is_system_master ? (
+                      <span className="status-chip soft">시스템 고정</span>
+                    ) : (
+                      <>
+                        <ModalDialog
+                          title={`${user.nickname || user.kakao_user_id} 권한 수정`}
+                          description="역할과 지점을 수정합니다."
+                          triggerLabel="수정"
+                        >
+                          <AdminUserRoleForm
+                            action="/api/admin/admin-users"
+                            intent="create"
+                            kakaoUserId={user.kakao_user_id}
+                            nickname={user.nickname || ""}
+                            memo={user.memo || ""}
+                            initialRole={user.role}
+                            initialBranchId={user.branch_id || ""}
+                            branches={branches}
+                            availableRoles={allowedRoles}
+                            fixedBranchId={viewerIsBranchMaster ? session.branch_id : ""}
+                            fixedBranchName={viewerIsBranchMaster ? session.branch_name || "" : ""}
+                            submitLabel="변경 저장"
+                          />
+                        </ModalDialog>
+                        {viewerIsIntegratedMaster ? (
+                          <form action="/api/admin/admin-users" method="post">
+                            <input type="hidden" name="intent" value="delete" />
+                            <input type="hidden" name="id" value={user.id} />
+                            <button type="submit" className="danger">
+                              제거
+                            </button>
+                          </form>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <PaginationControls
+              currentPage={usersPagination.currentPage}
+              totalPages={usersPagination.totalPages}
+              pageParam="usersPage"
+              searchParams={resolvedSearchParams}
+            />
+          </>
         )}
       </section>
     </div>

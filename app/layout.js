@@ -1,4 +1,8 @@
+import { Suspense } from "react";
+import "../styles/_variables.scss";
+import "../styles/_keyframe-animations.scss";
 import "./globals.css";
+import GlobalLoadingOverlay from "@/components/GlobalLoadingOverlay";
 import { APP_NAME } from "@/lib/config";
 
 export const metadata = {
@@ -9,7 +13,12 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ko">
-      <body className="app-body">{children}</body>
+      <body className="app-body">
+        {children}
+        <Suspense fallback={null}>
+          <GlobalLoadingOverlay />
+        </Suspense>
+      </body>
     </html>
   );
 }

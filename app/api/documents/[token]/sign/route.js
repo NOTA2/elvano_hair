@@ -1,16 +1,10 @@
 import { cookies } from "next/headers";
 import { getDocumentByToken, signDocument } from "@/lib/db";
-
-function documentResponse(document) {
-  return {
-    token: document.token,
-    status: document.status,
-    signed_at: document.signed_at
-  };
-}
+import { serializePublicDocument } from "@/lib/documents";
 
 export async function POST(request, { params }) {
-  const document = await getDocumentByToken(params.token);
+  const resolvedParams = await params;
+  const document = await getDocumentByToken(resolvedParams.token);
 
   if (!document) {
     return Response.json({ error: "문서를 찾을 수 없습니다." }, { status: 404 });
@@ -27,7 +21,7 @@ export async function POST(request, { params }) {
   }
 
   if (document.status === "signed") {
-    return Response.json({ document: documentResponse(document) });
+    return Response.json({ document: serializePublicDocument(document) });
   }
 
   const body = await request.json();
@@ -39,5 +33,5 @@ export async function POST(request, { params }) {
   const signedDocument = await signDocument(document.token, body.signatureDataUrl);
   cookieStore.delete(`verified_document_${document.token}`);
 
-  return Response.json({ document: documentResponse(signedDocument) });
+  return Response.json({ document: serializePublicDocument(signedDocument) });
 }

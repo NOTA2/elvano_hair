@@ -21,25 +21,26 @@ function KakaoSymbol() {
 
 export default async function AdminLoginPage({ searchParams }) {
   const session = await getCurrentSession();
+  const resolvedSearchParams = await searchParams;
 
   if (session) {
     redirect("/admin");
   }
 
   const errorMessage =
-    searchParams?.error === "pending_approval"
+    resolvedSearchParams?.error === "pending_approval"
       ? "로그인 시도는 저장되었습니다. 통합 마스터가 계정을 확인한 뒤 권한을 추가할 수 있습니다."
       : "";
 
   return (
-    <main className="login-shell">
-      <div className="login-card hero-card">
+    <main className="login-shell admin-login-shell">
+      <div className="login-card hero-card login-card-standalone">
         <div className="brand-kicker">Admin Login</div>
-        <h1 style={{ fontSize: "42px", marginBottom: 12 }}>카카오톡 로그인</h1>
+        <h2 className="login-card-title">카카오톡 로그인</h2>
         <p className="muted">
-          마스터가 허용한 관리자만 접근할 수 있습니다. 허용되지 않은 계정은 로그인 후에도 어드민 접근이 차단됩니다.
+          허용된 관리자만 접근할 수 있습니다.
         </p>
-        {errorMessage ? <p style={{ color: "var(--danger)" }}>{errorMessage}</p> : null}
+        {errorMessage ? <p className="login-error">{errorMessage}</p> : null}
         <div className="form-actions" style={{ marginTop: 24 }}>
           <Link className="kakao-login-button" href="/api/auth/kakao/start">
             <KakaoSymbol />
