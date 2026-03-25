@@ -104,7 +104,7 @@ export default async function AdminTemplatesPage({ searchParams }) {
                     <span className="field-label">템플릿명</span>
                     <input name="name" required />
                   </label>
-                  <label className="field">
+                  <label className="field-full">
                     <span className="field-label">문서 제목</span>
                     <input name="document_title" required />
                   </label>
@@ -159,7 +159,7 @@ export default async function AdminTemplatesPage({ searchParams }) {
                             <span className="field-label">템플릿명</span>
                             <input name="name" defaultValue={template.name} required />
                           </label>
-                          <label className="field">
+                          <label className="field-full">
                             <span className="field-label">문서 제목</span>
                             <input
                               name="document_title"

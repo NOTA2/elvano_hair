@@ -41,9 +41,8 @@ function normalizeString(formData, name) {
   return value === null ? null : String(value).trim();
 }
 
-function buildLocalInput({ branchId, templateCode, currentTemplate = null }) {
+function buildLocalInput({ templateCode, currentTemplate = null }) {
   return {
-    branch_id: branchId || null,
     template_code: templateCode,
     status: currentTemplate?.status === "inactive" ? "inactive" : "active"
   };
@@ -60,12 +59,18 @@ async function fetchRemoteTemplate(templateCode) {
     const remoteTemplate = await getBizgoNotificationTemplate({ templateCode });
 
     if (!remoteTemplate) {
-      return { error: ERROR_CODES.template_lookup_failed };
+      return {
+        error: ERROR_CODES.template_lookup_failed,
+        message: "Bizgo 조회 응답에 템플릿 정보가 없습니다."
+      };
     }
 
     return { remoteTemplate };
-  } catch {
-    return { error: ERROR_CODES.template_lookup_failed };
+  } catch (error) {
+    return {
+      error: ERROR_CODES.template_lookup_failed,
+      message: error instanceof Error ? error.message : "Bizgo 템플릿 조회 실패"
+    };
   }
 }
 
@@ -93,25 +98,25 @@ export async function POST(request) {
       return redirectBack(headerStore, { error: ERROR_CODES.duplicate_template_code });
     }
 
-    const { remoteTemplate, error } = await fetchRemoteTemplate(templateCode);
+    const { remoteTemplate, error, message } = await fetchRemoteTemplate(templateCode);
 
     if (error) {
-      return redirectBack(headerStore, { error });
+      return redirectBack(headerStore, { error, message });
     }
 
     if (duplicate && duplicate.status === "deleted") {
       await updateNotificationTemplate(duplicate.id, {
-        ...buildLocalInput({ branchId: null, templateCode }),
+        ...buildLocalInput({ templateCode }),
         ...mapBizgoTemplateToLocal(remoteTemplate)
       });
     } else {
       await createNotificationTemplate({
-        ...buildLocalInput({ branchId: null, templateCode }),
+        ...buildLocalInput({ templateCode }),
         ...mapBizgoTemplateToLocal(remoteTemplate)
       });
     }
 
-    return redirectBack(headerStore, { error: "" });
+    return redirectBack(headerStore, { error: "", message: "" });
   }
 
   const templateId = Number(formData.get("id"));
@@ -134,39 +139,38 @@ export async function POST(request) {
       return redirectBack(headerStore, { error: ERROR_CODES.duplicate_template_code });
     }
 
-    const { remoteTemplate, error } = await fetchRemoteTemplate(templateCode);
+    const { remoteTemplate, error, message } = await fetchRemoteTemplate(templateCode);
 
     if (error) {
-      return redirectBack(headerStore, { error });
+      return redirectBack(headerStore, { error, message });
     }
 
     await updateNotificationTemplate(templateId, {
-      ...buildLocalInput({ branchId: null, templateCode, currentTemplate }),
+      ...buildLocalInput({ templateCode, currentTemplate }),
       ...mapBizgoTemplateToLocal(remoteTemplate)
     });
 
-    return redirectBack(headerStore, { error: "" });
+    return redirectBack(headerStore, { error: "", message: "" });
   }
 
   if (intent === "sync") {
-    const { remoteTemplate, error } = await fetchRemoteTemplate(currentTemplate.template_code);
+    const { remoteTemplate, error, message } = await fetchRemoteTemplate(currentTemplate.template_code);
 
     if (error) {
-      return redirectBack(headerStore, { error });
+      return redirectBack(headerStore, { error, message });
     }
 
     await updateNotificationTemplate(templateId, {
-      branch_id: null,
       status: currentTemplate.status,
       ...mapBizgoTemplateToLocal(remoteTemplate)
     });
 
-    return redirectBack(headerStore, { error: "" });
+    return redirectBack(headerStore, { error: "", message: "" });
   }
 
   if (intent === "delete") {
     await deleteNotificationTemplate(templateId);
   }
 
-  return redirectBack(headerStore, { error: "" });
+  return redirectBack(headerStore, { error: "", message: "" });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { startGlobalLoading } from "@/components/GlobalLoadingOverlay";
 import SelectField from "@/components/SelectField";
 
 const DEFAULT_PAGE_SIZES = [10, 20, 50, 100];
@@ -37,6 +38,7 @@ export default function DocumentsListControls({
 
     params.delete(pageParam);
     const query = params.toString();
+    startGlobalLoading();
     router.push(query ? `${pathname}?${query}` : pathname);
   }
 

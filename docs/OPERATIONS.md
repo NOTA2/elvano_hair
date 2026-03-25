@@ -18,12 +18,11 @@
 | `PUBLIC_BASE_URL` | 앱의 절대 base URL |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase 프로젝트 URL |
 | `SUPABASE_SECRET_KEY` | 서버 전용 secret key |
-| `SUPABASE_SERVICE_ROLE_KEY` | 구 naming 호환용 대체 키 |
 | `KAKAO_REST_API_KEY` | 카카오 REST API 키 |
 | `KAKAO_CLIENT_SECRET` | 카카오 client secret, 사용 시만 |
 | `KAKAO_REDIRECT_URI` | 카카오 OAuth callback URL |
-| `BIZGO_BASE_URL` | Bizgo API base URL |
 | `BIZGO_API_KEY` | Bizgo API 키 |
+| `BIZGO_SENDER_KEY` | Bizgo 발신 프로필 키 |
 | `MASTER_KAKAO_ID` | 통합 마스터 카카오 ID |
 
 ## 로컬 실행
@@ -34,7 +33,8 @@
 2. `npm install`
 3. `.env.example`를 복사해 `.env.local` 작성
 4. Supabase 프로젝트 생성 후 `supabase/schema.sql` 실행
-5. 기존 DB라면 `supabase/migrations/20260325_template_soft_delete.sql` 와 `supabase/migrations/20260325_notification_templates.sql` 실행
+
+`supabase/schema.sql`은 reset 전용 스크립트다. 기존 테이블과 데이터를 모두 지우고 현재 앱 기준 테이블을 다시 만든다.
 
 ### 실행
 
@@ -94,6 +94,8 @@ KAKAO_REDIRECT_URI=https://example.vercel.app/api/auth/kakao/callback
 
 ## Bizgo 설정
 
+Bizgo base URL은 코드에서 `https://mars.ibapi.kr/api/comm` 으로 고정되어 있다.
+
 알림톡 템플릿 관리와 실제 발송에는 아래가 필요하다.
 
 - 발신 프로필 키
@@ -116,9 +118,9 @@ KAKAO_REDIRECT_URI=https://example.vercel.app/api/auth/kakao/callback
 3. 통합 마스터로 로그인
 4. 지점 생성
 5. 지점별 디자이너 생성
-6. 지점별 문서 템플릿 생성
-7. 지점별 알림톡 템플릿 생성
-8. 필요하면 검수 요청 후 승인 상태 동기화
+6. 공용 문서 템플릿 생성
+7. Bizgo 콘솔에서 공용 알림톡 템플릿 생성 후 코드 등록
+8. 필요하면 템플릿 코드 조회로 원격 상태 동기화
 9. 필요하면 지점 마스터/일반 어드민 권한 부여
 10. 문서 발급 테스트
 11. 공개 링크에서 본인 확인 및 서명 테스트
@@ -130,8 +132,8 @@ KAKAO_REDIRECT_URI=https://example.vercel.app/api/auth/kakao/callback
 
 1. 지점 생성
 2. 디자이너 등록
-3. 지점 전용 문서 템플릿 등록
-4. 지점 전용 알림톡 템플릿 등록
+3. 공용 문서 템플릿 확인 또는 등록
+4. Bizgo 콘솔의 공용 알림톡 템플릿 코드 등록
 5. 필요하면 지점 마스터 계정 지정
 
 ### 새 관리자 승인
@@ -185,7 +187,7 @@ KAKAO_REDIRECT_URI=https://example.vercel.app/api/auth/kakao/callback
 ## 알려진 제약
 
 1. 테스트 코드가 없다.
-2. DB migration 관리 도구가 없다.
+2. `schema.sql`은 reset 방식이라 기존 운영 데이터를 보존하는 점진 변경에는 맞지 않는다.
 3. 서명 이미지를 DB text 컬럼에 저장한다.
 4. 세밀한 감사 로그 UI가 없다.
 5. Supabase SQL policy는 아직 정의하지 않았다.
@@ -202,8 +204,8 @@ KAKAO_REDIRECT_URI=https://example.vercel.app/api/auth/kakao/callback
 
 운영 안정성을 높이려면 아래 순서가 좋다.
 
-1. Supabase migration 체계 도입
-2. 테스트 코드 추가
-3. 감사 로그 화면 추가
-4. 서명 이미지 저장소 분리 검토
-5. 문서 취소/재발송 기능 추가
+1. 테스트 코드 추가
+2. 감사 로그 화면 추가
+3. 서명 이미지 저장소 분리 검토
+4. 문서 취소/재발송 기능 추가
+5. 운영 DB 백업/복원 절차 문서화

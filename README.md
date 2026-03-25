@@ -56,12 +56,7 @@ cp .env.example .env.local
 3. [`/Users/user/projects/workspace/elvano_hair/supabase/schema.sql`](/Users/user/projects/workspace/elvano_hair/supabase/schema.sql) 내용 실행
 
 이 프로젝트는 로컬 파일 DB를 쓰지 않고 Supabase Postgres를 사용합니다.
-
-기존에 예전 스키마를 이미 적용했다면, 이번 권한/지점 구조 반영을 위해 최신 [`/Users/user/projects/workspace/elvano_hair/supabase/schema.sql`](/Users/user/projects/workspace/elvano_hair/supabase/schema.sql)을 다시 실행해야 합니다.
-
-특히 이미 운영 중인 DB에는 템플릿 soft delete용 `deleted_at` 컬럼이 필요하므로 [`/Users/user/projects/workspace/elvano_hair/supabase/migrations/20260325_template_soft_delete.sql`](/Users/user/projects/workspace/elvano_hair/supabase/migrations/20260325_template_soft_delete.sql) 도 한 번 실행해야 합니다.
-
-알림톡 템플릿 분리 구조를 쓰려면 [`/Users/user/projects/workspace/elvano_hair/supabase/migrations/20260325_notification_templates.sql`](/Users/user/projects/workspace/elvano_hair/supabase/migrations/20260325_notification_templates.sql) 도 실행해야 합니다.
+`schema.sql`은 reset 전용 스크립트다. 실행하면 현재 `public` 스키마의 앱 테이블을 모두 삭제 후 다시 생성한다.
 
 예시:
 
@@ -75,7 +70,6 @@ KAKAO_REST_API_KEY=your_kakao_rest_api_key
 KAKAO_CLIENT_SECRET=
 KAKAO_REDIRECT_URI=http://localhost:3000/api/auth/kakao/callback
 
-BIZGO_BASE_URL=https://api.bizgo.io
 BIZGO_API_KEY=your_bizgo_api_key
 BIZGO_SENDER_KEY=your_bizgo_sender_key
 
@@ -87,13 +81,11 @@ MASTER_KAKAO_ID=1234567890
 - `PUBLIC_BASE_URL`: 로컬 개발 URL. 기본은 `http://localhost:3000`
 - `NEXT_PUBLIC_SUPABASE_URL`: Supabase 프로젝트 URL
 - `SUPABASE_SECRET_KEY`: 서버 전용 키. Vercel에는 반드시 서버 환경변수로만 넣어야 함
-- `SUPABASE_SERVICE_ROLE_KEY`: 구 naming을 쓰는 경우 대체 가능
 - `KAKAO_REST_API_KEY`: 카카오 로그인용 REST API 키
 - `KAKAO_CLIENT_SECRET`: 카카오 앱에서 사용 중이면 입력
 - `KAKAO_REDIRECT_URI`: 카카오 개발자 콘솔에 반드시 `http://localhost:3000/api/auth/kakao/callback` 등록
 - `BIZGO_API_KEY`: Bizgo 알림톡 발송 API 키
 - `BIZGO_SENDER_KEY`: Bizgo 발신 프로필 키. 알림톡 템플릿 조회와 발송에 공통 사용
-- `BIZGO_BASE_URL`: 기본값 사용 가능
 - `MASTER_KAKAO_ID`: 마스터 관리자 카카오 사용자 ID
 
 ### 5. 개발 서버 실행
@@ -139,7 +131,7 @@ Bizgo API 키가 없더라도 아래 범위는 테스트할 수 있습니다.
 - 휴대폰 뒷자리 확인
 - 서명 저장
 
-알림톡 템플릿 등록/수정/삭제/검수 요청과, 알림톡 템플릿을 선택하는 문서 발급 테스트는 Bizgo API 키가 있어야 합니다.
+알림톡 템플릿 코드 등록/조회와, 알림톡 템플릿을 선택하는 문서 발급 테스트는 Bizgo API 키가 있어야 합니다.
 
 ### 9. Vercel 배포 환경변수
 
@@ -152,7 +144,6 @@ Vercel 프로젝트에도 아래 값을 그대로 등록해야 합니다.
 - `KAKAO_CLIENT_SECRET`
 - `KAKAO_REDIRECT_URI`
 - `BIZGO_API_KEY`
-- `BIZGO_BASE_URL`
 - `MASTER_KAKAO_ID`
 
 `KAKAO_REDIRECT_URI`와 `PUBLIC_BASE_URL`은 실제 배포 도메인 기준으로 맞춰야 합니다. 예를 들어 배포 URL이 `https://example.vercel.app` 이면:
@@ -194,7 +185,7 @@ npm run start
 이 프로젝트는 `문서 템플릿`과 `알림톡 템플릿`을 분리합니다.
 
 - 문서 템플릿: 고객이 실제로 읽고 서명하는 안내문 원본
-- 알림톡 템플릿: Bizgo 콘솔에서 직접 등록하는 발송 템플릿. 어드민에서는 템플릿 코드를 지점에 연결하고 조회 API로 동기화
+- 알림톡 템플릿: Bizgo 콘솔에서 직접 등록하는 발송 템플릿. 어드민에서는 템플릿 코드를 공용 목록에 연결하고 조회 API로 동기화
 
 현재 운영 흐름은 다음과 같습니다.
 
@@ -202,6 +193,8 @@ npm run start
 - Bizgo 콘솔 등록: [알림톡 템플릿 관리](https://www.bizgo.io/console/team/2815/kakao/template/alimtalk)
 - 로컬 어드민 등록: 템플릿 코드만 저장하고 조회 API 결과를 로컬에 동기화
 - 발송: `POST /v1/send/omni`
+
+Bizgo base URL은 코드에서 `https://mars.ibapi.kr/api/comm` 으로 고정되어 있습니다.
 
 문서 발급 시에는 `문서 템플릿`과 `알림톡 템플릿`을 각각 선택하고, "알림톡 즉시 발송"을 선택하면 `POST /v1/send/omni`로 실제 발송을 시도합니다.
 버튼 URL용 `{{document_url}}` 값은 프로토콜(`http://`, `https://`)이 제거된 상태로 전달되므로, Bizgo 템플릿 버튼 URL은 `https://#{document_url}` 형태로 등록해야 합니다.

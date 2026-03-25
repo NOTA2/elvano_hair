@@ -40,10 +40,8 @@ export async function POST(request) {
 
   if (intent === "create") {
     await createTemplate({
-      branch_id: null,
       name: formData.get("name"),
       document_title: formData.get("document_title"),
-      description: null,
       content: normalizedContent,
       status: resolveTemplateStatus(formData)
     });
@@ -57,10 +55,8 @@ export async function POST(request) {
     }
 
     await updateTemplate(Number(formData.get("id")), {
-      branch_id: null,
       name: formData.get("name"),
       document_title: formData.get("document_title"),
-      description: null,
       content: normalizedContent,
       status: resolveTemplateStatus(formData)
     });

@@ -32,7 +32,7 @@ const ERROR_MESSAGES = {
   template_code_required: "템플릿 코드를 입력해야 합니다.",
   template_lookup_failed:
     "Bizgo 조회 결과가 없어 등록할 수 없습니다. Bizgo 콘솔에서 템플릿 코드와 발신 프로필 키를 먼저 확인해 주세요.",
-  duplicate_template_code: "같은 지점에 이미 등록된 알림톡 템플릿 코드입니다."
+  duplicate_template_code: "이미 등록된 알림톡 템플릿 코드입니다."
 };
 
 function lifecycleClass(template) {
@@ -185,7 +185,9 @@ export default async function NotificationTemplatesPage({ searchParams }) {
     pageSize
   );
   const errorMessage =
-    ERROR_MESSAGES[String(resolvedSearchParams?.error || "")] || "";
+    String(resolvedSearchParams?.message || "").trim() ||
+    ERROR_MESSAGES[String(resolvedSearchParams?.error || "")] ||
+    "";
 
   return (
     <div className="section-stack">
@@ -231,7 +233,7 @@ export default async function NotificationTemplatesPage({ searchParams }) {
             <h2 className="panel-title">알림톡 템플릿 관리</h2>
             <p className="panel-copy">
               알림톡 템플릿은 Bizgo 콘솔에서 직접 등록하고, 여기서는 템플릿 코드를
-              지점에 연결해 사용합니다. 저장 시 템플릿 조회 API로 원격 정보를 확인해
+              공용 목록에 연결해 사용합니다. 저장 시 템플릿 조회 API로 원격 정보를 확인해
               로컬 목록에 동기화합니다.
             </p>
           </div>
