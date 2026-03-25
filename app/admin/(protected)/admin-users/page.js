@@ -23,56 +23,30 @@ export default async function AdminUsersPage() {
       attempt.kakao_user_id !== MASTER_KAKAO_ID &&
       !userMap.has(attempt.kakao_user_id)
   );
+  const branchMasterCount = users.filter((user) => user.role === BRANCH_MASTER_ROLE).length;
 
   return (
-    <div>
+    <div className="section-stack">
       <section className="panel">
-        <h2>권한 직접 추가</h2>
-        <p className="muted">
-          통합 마스터 카카오 ID는 <span className="code">{MASTER_KAKAO_ID}</span> 로 고정됩니다.
-        </p>
-        <form action="/api/admin/admin-users" method="post">
-          <input type="hidden" name="intent" value="create" />
-          <div className="form-grid">
-            <label className="field">
-              <span className="field-label">카카오 사용자 ID</span>
-              <input name="kakao_user_id" required />
-            </label>
-            <label className="field">
-              <span className="field-label">닉네임</span>
-              <input name="nickname" />
-            </label>
-            <label className="field">
-              <span className="field-label">권한</span>
-              <select name="role" defaultValue={ADMIN_ROLE}>
-                <option value={ADMIN_ROLE}>{ROLE_LABELS[ADMIN_ROLE]}</option>
-                <option value={BRANCH_MASTER_ROLE}>{ROLE_LABELS[BRANCH_MASTER_ROLE]}</option>
-              </select>
-            </label>
-            <label className="field">
-              <span className="field-label">지점</span>
-              <select name="branch_id" defaultValue="">
-                <option value="">선택 안 함</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field-full">
-              <span className="field-label">메모</span>
-              <textarea name="memo" />
-            </label>
+        <div className="panel-head">
+          <div>
+            <div className="panel-eyebrow">Pending Approval</div>
+            <h2 className="panel-title">로그인 시도 계정</h2>
+            <p className="panel-copy">
+              이미 권한이 있는 계정과 통합 마스터 계정은 제외됩니다. 여기에는 아직
+              승인되지 않은 카카오 계정만 표시됩니다.
+            </p>
           </div>
-          <div className="form-actions" style={{ marginTop: 16 }}>
-            <button type="submit">권한 저장</button>
+          <div className="panel-kpi-row">
+            <span className="metric-pill">권한 대기 {pendingLoginAttempts.length}</span>
+            <span className="metric-pill">허용 관리자 {users.length}</span>
+            <span className="metric-pill">지점 마스터 {branchMasterCount}</span>
           </div>
-        </form>
-      </section>
-
-      <section className="panel">
-        <h2>로그인 시도 계정</h2>
+        </div>
+        <div className="empty-state" style={{ marginBottom: 18 }}>
+          통합 마스터 카카오 ID는 <span className="code">{MASTER_KAKAO_ID}</span> 로
+          고정됩니다.
+        </div>
         {pendingLoginAttempts.length === 0 ? (
           <div className="empty-state">권한 대기 중인 로그인 시도 계정이 없습니다.</div>
         ) : (
@@ -84,61 +58,61 @@ export default async function AdminUsersPage() {
                   <th>닉네임</th>
                   <th>시도 횟수</th>
                   <th>최근 상태</th>
-                  <th>현재 권한</th>
                   <th>권한 부여</th>
                 </tr>
               </thead>
               <tbody>
-                {pendingLoginAttempts.map((attempt) => {
-                  return (
-                    <tr key={attempt.kakao_user_id}>
-                      <td>{attempt.kakao_user_id}</td>
-                      <td>{attempt.nickname || "-"}</td>
-                      <td>{attempt.attempt_count}</td>
-                      <td>
-                        <div>{attempt.last_status}</div>
-                        <div className="muted">
-                          {String(attempt.last_attempt_at).slice(0, 16).replace("T", " ")}
-                        </div>
-                      </td>
-                      <td>
-                        -
-                      </td>
-                      <td>
-                        <form action="/api/admin/admin-users" method="post">
-                          <input type="hidden" name="intent" value="create" />
-                          <input
-                            type="hidden"
-                            name="kakao_user_id"
-                            value={attempt.kakao_user_id}
-                          />
-                          <input
-                            type="hidden"
-                            name="nickname"
-                            value={attempt.nickname || ""}
-                          />
-                          <div className="inline-actions">
-                            <select name="role" defaultValue={ADMIN_ROLE}>
-                              <option value={ADMIN_ROLE}>{ROLE_LABELS[ADMIN_ROLE]}</option>
-                              <option value={BRANCH_MASTER_ROLE}>
-                                {ROLE_LABELS[BRANCH_MASTER_ROLE]}
+                {pendingLoginAttempts.map((attempt) => (
+                  <tr key={attempt.kakao_user_id}>
+                    <td>
+                      <div className="table-cell-title">{attempt.kakao_user_id}</div>
+                    </td>
+                    <td>
+                      <div className="table-cell-title">{attempt.nickname || "-"}</div>
+                    </td>
+                    <td>
+                      <div className="table-cell-title">{attempt.attempt_count}</div>
+                    </td>
+                    <td>
+                      <div className="table-cell-title">{attempt.last_status}</div>
+                      <div className="table-cell-copy">
+                        {String(attempt.last_attempt_at).slice(0, 16).replace("T", " ")}
+                      </div>
+                    </td>
+                    <td>
+                      <form action="/api/admin/admin-users" method="post">
+                        <input type="hidden" name="intent" value="create" />
+                        <input
+                          type="hidden"
+                          name="kakao_user_id"
+                          value={attempt.kakao_user_id}
+                        />
+                        <input
+                          type="hidden"
+                          name="nickname"
+                          value={attempt.nickname || ""}
+                        />
+                        <div className="inline-actions">
+                          <select name="role" defaultValue={ADMIN_ROLE}>
+                            <option value={ADMIN_ROLE}>{ROLE_LABELS[ADMIN_ROLE]}</option>
+                            <option value={BRANCH_MASTER_ROLE}>
+                              {ROLE_LABELS[BRANCH_MASTER_ROLE]}
+                            </option>
+                          </select>
+                          <select name="branch_id" defaultValue="">
+                            <option value="">선택 안 함</option>
+                            {branches.map((branch) => (
+                              <option key={branch.id} value={branch.id}>
+                                {branch.name}
                               </option>
-                            </select>
-                            <select name="branch_id" defaultValue="">
-                              <option value="">선택 안 함</option>
-                              {branches.map((branch) => (
-                                <option key={branch.id} value={branch.id}>
-                                  {branch.name}
-                                </option>
-                              ))}
-                            </select>
-                            <button type="submit">권한 저장</button>
-                          </div>
-                        </form>
-                      </td>
-                    </tr>
-                  );
-                })}
+                            ))}
+                          </select>
+                          <button type="submit">권한 저장</button>
+                        </div>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -146,7 +120,12 @@ export default async function AdminUsersPage() {
       </section>
 
       <section className="panel">
-        <h2>허용된 관리자</h2>
+        <div className="panel-head">
+          <div>
+            <div className="panel-eyebrow">Allowed Admins</div>
+            <h2 className="panel-title">허용된 관리자</h2>
+          </div>
+        </div>
         {users.length === 0 ? (
           <div className="empty-state">등록된 허용 관리자가 없습니다.</div>
         ) : (
@@ -165,11 +144,23 @@ export default async function AdminUsersPage() {
               <tbody>
                 {users.map((user) => (
                   <tr key={user.id}>
-                    <td>{user.kakao_user_id}</td>
-                    <td>{user.nickname || "-"}</td>
-                    <td>{ROLE_LABELS[user.role] || user.role}</td>
-                    <td>{user.branch_name || "-"}</td>
-                    <td>{user.memo || "-"}</td>
+                    <td>
+                      <div className="table-cell-title">{user.kakao_user_id}</div>
+                    </td>
+                    <td>
+                      <div className="table-cell-title">{user.nickname || "-"}</div>
+                    </td>
+                    <td>
+                      <span className="status-chip soft">
+                        {ROLE_LABELS[user.role] || user.role}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="table-cell-title">{user.branch_name || "-"}</div>
+                    </td>
+                    <td>
+                      <div className="table-cell-copy">{user.memo || "-"}</div>
+                    </td>
                     <td>
                       <form action="/api/admin/admin-users" method="post">
                         <input type="hidden" name="intent" value="create" />
@@ -194,7 +185,7 @@ export default async function AdminUsersPage() {
                           <button type="submit">저장</button>
                         </div>
                       </form>
-                      <form action="/api/admin/admin-users" method="post" style={{ marginTop: 8 }}>
+                      <form action="/api/admin/admin-users" method="post" style={{ marginTop: 10 }}>
                         <input type="hidden" name="intent" value="delete" />
                         <input type="hidden" name="id" value={user.id} />
                         <button type="submit" className="danger">

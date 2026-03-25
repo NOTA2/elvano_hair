@@ -4,7 +4,12 @@ import {
   isIntegratedMaster
 } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/config";
-import { createAdminUser, deleteAdminUser } from "@/lib/db";
+import {
+  createAdminUser,
+  deleteAdminUser,
+  getAdminUserByKakaoId,
+  getLoginAttemptByKakaoId
+} from "@/lib/db";
 import { ADMIN_ROLE, BRANCH_MASTER_ROLE } from "@/lib/roles";
 
 function redirectBack(headerStore) {
@@ -21,6 +26,7 @@ export async function POST(request) {
   const intent = formData.get("intent");
 
   if (intent === "create") {
+    const kakaoUserId = String(formData.get("kakao_user_id"));
     const role = String(formData.get("role") || ADMIN_ROLE);
     const branchId = formData.get("branch_id")
       ? Number(formData.get("branch_id"))
@@ -30,8 +36,17 @@ export async function POST(request) {
       return redirectBack(headerStore);
     }
 
+    const existingAdminUser = await getAdminUserByKakaoId(kakaoUserId, {
+      includeInactive: true
+    });
+    const loginAttempt = await getLoginAttemptByKakaoId(kakaoUserId);
+
+    if (!existingAdminUser && !loginAttempt) {
+      return redirectBack(headerStore);
+    }
+
     await createAdminUser({
-      kakao_user_id: String(formData.get("kakao_user_id")),
+      kakao_user_id: kakaoUserId,
       nickname: formData.get("nickname"),
       memo: formData.get("memo"),
       role,

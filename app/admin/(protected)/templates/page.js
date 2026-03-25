@@ -30,25 +30,51 @@ function branchField(session, branches, defaultBranchId) {
   );
 }
 
+function hasBizgoConfig(template) {
+  return Boolean(
+    template.bizgo_template_code &&
+      template.bizgo_sender_key &&
+      template.bizgo_message
+  );
+}
+
 export default async function AdminTemplatesPage() {
   const session = await requireBranchManagerSession();
   const branchId = session.role === BRANCH_MASTER_ROLE ? session.branch_id : undefined;
   const templates = await listTemplates({ branchId });
   const branches = await listBranches({ activeOnly: true, branchId });
+  const activeCount = templates.filter((template) => template.is_active).length;
+  const bizgoConnectedCount = templates.filter(hasBizgoConfig).length;
 
   return (
-    <div>
+    <div className="section-stack">
       <section className="panel">
-        <h2>템플릿 등록</h2>
-        <p className="muted">
-          본문에서는 <span className="code">{`{{branch_name}}`}</span>,{" "}
-          <span className="code">{`{{document_title}}`}</span>,{" "}
-          <span className="code">{`{{date}}`}</span>,{" "}
-          <span className="code">{`{{customer_name}}`}</span>,{" "}
-          <span className="code">{`{{phone_last4}}`}</span>,{" "}
-          <span className="code">{`{{designer_name}}`}</span>,{" "}
-          <span className="code">{`{{document_url}}`}</span> 치환값을 사용할 수 있습니다.
-        </p>
+        <div className="panel-head">
+          <div>
+            <div className="panel-eyebrow">Template Studio</div>
+            <h2 className="panel-title">템플릿 등록</h2>
+            <p className="panel-copy">
+              안내문 본문과 Bizgo 메시지를 같이 관리합니다. 치환값은 문서 발급 시점에
+              실제 고객 정보로 반영됩니다.
+            </p>
+          </div>
+          <div className="panel-kpi-row">
+            <span className="metric-pill">전체 {templates.length}</span>
+            <span className="metric-pill">활성 {activeCount}</span>
+            <span className="metric-pill">Bizgo 연결 {bizgoConnectedCount}</span>
+          </div>
+        </div>
+
+        <div className="chip-row">
+          <span className="status-chip soft">{`{{branch_name}}`}</span>
+          <span className="status-chip soft">{`{{document_title}}`}</span>
+          <span className="status-chip soft">{`{{date}}`}</span>
+          <span className="status-chip soft">{`{{customer_name}}`}</span>
+          <span className="status-chip soft">{`{{phone_last4}}`}</span>
+          <span className="status-chip soft">{`{{designer_name}}`}</span>
+          <span className="status-chip soft">{`{{document_url}}`}</span>
+        </div>
+
         <form action="/api/admin/templates" method="post">
           <input type="hidden" name="intent" value="create" />
           <div className="form-grid">
@@ -89,88 +115,111 @@ export default async function AdminTemplatesPage() {
               </select>
             </label>
           </div>
-          <div className="form-actions" style={{ marginTop: 16 }}>
+          <div className="form-actions admin-form-actions">
             <button type="submit">템플릿 저장</button>
           </div>
         </form>
       </section>
 
       <section className="panel">
-        <h2>등록된 템플릿</h2>
+        <div className="panel-head">
+          <div>
+            <div className="panel-eyebrow">Template Library</div>
+            <h2 className="panel-title">등록된 템플릿</h2>
+          </div>
+        </div>
         {templates.length === 0 ? (
           <div className="empty-state">등록된 템플릿이 없습니다.</div>
         ) : (
-          templates.map((template) => (
-            <div key={template.id} className="panel" style={{ padding: 18 }}>
-              <form action="/api/admin/templates" method="post">
-                <input type="hidden" name="intent" value="update" />
-                <input type="hidden" name="id" value={template.id} />
-                <div className="form-grid">
-                  {branchField(session, branches, template.branch_id)}
-                  <label className="field">
-                    <span className="field-label">템플릿명</span>
-                    <input name="name" defaultValue={template.name} required />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">설명</span>
-                    <input name="description" defaultValue={template.description || ""} />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">Bizgo 템플릿 코드</span>
-                    <input
-                      name="bizgo_template_code"
-                      defaultValue={template.bizgo_template_code || ""}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">Bizgo 발신키</span>
-                    <input
-                      name="bizgo_sender_key"
-                      defaultValue={template.bizgo_sender_key || ""}
-                    />
-                  </label>
-                  <label className="field-full">
-                    <span className="field-label">본문</span>
-                    <textarea name="content" defaultValue={template.content} required />
-                  </label>
-                  <label className="field-full">
-                    <span className="field-label">알림톡 메시지</span>
-                    <textarea
-                      name="bizgo_message"
-                      defaultValue={template.bizgo_message || ""}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">알림톡 버튼명</span>
-                    <input
-                      name="bizgo_button_name"
-                      defaultValue={template.bizgo_button_name || ""}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field-label">사용 여부</span>
-                    <select name="is_active" defaultValue={template.is_active ? "1" : "0"}>
-                      <option value="1">사용</option>
-                      <option value="0">중지</option>
-                    </select>
-                  </label>
+          <div className="stack-list">
+            {templates.map((template) => (
+              <div key={template.id} className="record-card">
+                <div className="record-head">
+                  <div>
+                    <div className="record-title">{template.name}</div>
+                    <div className="record-meta">
+                      {template.branch_name || "-"} · {template.description || "설명 없음"}
+                    </div>
+                  </div>
+                  <div className="chip-row">
+                    <span className={`status-chip ${template.is_active ? "positive" : "neutral"}`}>
+                      {template.is_active ? "사용 중" : "중지"}
+                    </span>
+                    <span className={`status-chip ${hasBizgoConfig(template) ? "brand" : "soft"}`}>
+                      {hasBizgoConfig(template) ? "Bizgo 연결" : "Bizgo 미설정"}
+                    </span>
+                  </div>
                 </div>
-                <div className="form-actions" style={{ marginTop: 16 }}>
-                  <button type="submit">수정 저장</button>
-                </div>
-              </form>
-              <div className="muted" style={{ marginTop: 8 }}>
-                지점: {template.branch_name || "-"}
+                <form action="/api/admin/templates" method="post">
+                  <input type="hidden" name="intent" value="update" />
+                  <input type="hidden" name="id" value={template.id} />
+                  <div className="form-grid">
+                    {branchField(session, branches, template.branch_id)}
+                    <label className="field">
+                      <span className="field-label">템플릿명</span>
+                      <input name="name" defaultValue={template.name} required />
+                    </label>
+                    <label className="field">
+                      <span className="field-label">설명</span>
+                      <input
+                        name="description"
+                        defaultValue={template.description || ""}
+                      />
+                    </label>
+                    <label className="field">
+                      <span className="field-label">Bizgo 템플릿 코드</span>
+                      <input
+                        name="bizgo_template_code"
+                        defaultValue={template.bizgo_template_code || ""}
+                      />
+                    </label>
+                    <label className="field">
+                      <span className="field-label">Bizgo 발신키</span>
+                      <input
+                        name="bizgo_sender_key"
+                        defaultValue={template.bizgo_sender_key || ""}
+                      />
+                    </label>
+                    <label className="field-full">
+                      <span className="field-label">본문</span>
+                      <textarea name="content" defaultValue={template.content} required />
+                    </label>
+                    <label className="field-full">
+                      <span className="field-label">알림톡 메시지</span>
+                      <textarea
+                        name="bizgo_message"
+                        defaultValue={template.bizgo_message || ""}
+                      />
+                    </label>
+                    <label className="field">
+                      <span className="field-label">알림톡 버튼명</span>
+                      <input
+                        name="bizgo_button_name"
+                        defaultValue={template.bizgo_button_name || ""}
+                      />
+                    </label>
+                    <label className="field">
+                      <span className="field-label">사용 여부</span>
+                      <select name="is_active" defaultValue={template.is_active ? "1" : "0"}>
+                        <option value="1">사용</option>
+                        <option value="0">중지</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="form-actions admin-form-actions">
+                    <button type="submit">수정 저장</button>
+                  </div>
+                </form>
+                <form action="/api/admin/templates" method="post">
+                  <input type="hidden" name="intent" value="delete" />
+                  <input type="hidden" name="id" value={template.id} />
+                  <button type="submit" className="danger">
+                    삭제
+                  </button>
+                </form>
               </div>
-              <form action="/api/admin/templates" method="post" style={{ marginTop: 8 }}>
-                <input type="hidden" name="intent" value="delete" />
-                <input type="hidden" name="id" value={template.id} />
-                <button type="submit" className="danger">
-                  삭제
-                </button>
-              </form>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </section>
     </div>

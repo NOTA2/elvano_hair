@@ -21,11 +21,30 @@ export default async function AdminDocumentsPage() {
   const designers = await listDesigners({ activeOnly: true, branchId });
   const documents = await listDocuments({ branchId });
   const baseUrl = getBaseUrl();
+  const signedCount = documents.filter((document) => document.status === "signed").length;
+  const pendingCount = documents.filter((document) => document.status === "pending").length;
+  const failedCount = documents.filter((document) => document.status === "failed").length;
 
   return (
-    <div>
+    <div className="section-stack">
       <section className="panel">
-        <h2>서명 문서 발급</h2>
+        <div className="panel-head">
+          <div>
+            <div className="panel-eyebrow">Document Workflow</div>
+            <h2 className="panel-title">서명 문서 발급</h2>
+            <p className="panel-copy">
+              고객 안내문을 발급하면 공개 링크가 생성되고, 필요하면 Bizgo 알림톡으로
+              바로 전송할 수 있습니다.
+            </p>
+          </div>
+          <div className="panel-kpi-row">
+            <span className="metric-pill">전체 {documents.length}</span>
+            <span className="metric-pill">완료 {signedCount}</span>
+            <span className="metric-pill">대기 {pendingCount}</span>
+            {failedCount > 0 ? <span className="metric-pill">실패 {failedCount}</span> : null}
+          </div>
+        </div>
+
         <form action="/api/admin/documents" method="post">
           <input type="hidden" name="intent" value="create" />
           <div className="form-grid">
@@ -102,14 +121,27 @@ export default async function AdminDocumentsPage() {
               </select>
             </label>
           </div>
-          <div className="form-actions" style={{ marginTop: 16 }}>
+          <div className="form-actions admin-form-actions">
             <button type="submit">문서 생성</button>
+            <span className="pill-note">
+              Bizgo 발송은 템플릿에 발신키, 템플릿 코드, 메시지가 모두 설정되어 있어야
+              합니다.
+            </span>
           </div>
         </form>
       </section>
 
       <section className="panel">
-        <h2>발급된 문서 목록</h2>
+        <div className="panel-head">
+          <div>
+            <div className="panel-eyebrow">Issued Documents</div>
+            <h2 className="panel-title">발급된 문서 목록</h2>
+            <p className="panel-copy">
+              최근에 생성된 순서대로 표시합니다. 링크는 고객에게 전달되는 최종 공개
+              주소입니다.
+            </p>
+          </div>
+        </div>
         {documents.length === 0 ? (
           <div className="empty-state">발급된 문서가 없습니다.</div>
         ) : (
@@ -134,31 +166,34 @@ export default async function AdminDocumentsPage() {
                       </span>
                     </td>
                     <td>
-                      <strong>{document.branch_name}</strong>
-                      <div>{document.document_title}</div>
-                      <div className="muted">{document.template_name}</div>
-                      <div className="muted">{document.designer_name}</div>
+                      <div className="table-cell-title">{document.document_title}</div>
+                      <div className="table-cell-copy">
+                        {document.branch_name} · {document.template_name || "-"} · {document.designer_name}
+                      </div>
                     </td>
                     <td>
-                      <strong>{document.customer_name}</strong>
-                      <div className="muted">{document.phone_last4}</div>
+                      <div className="table-cell-title">{document.customer_name}</div>
+                      <div className="table-cell-copy">{document.phone_last4}</div>
                     </td>
                     <td>
                       <a
+                        className="button secondary table-action-button"
                         href={`${baseUrl}/s/${document.token}`}
                         target="_blank"
                         rel="noreferrer"
                       >
-                        {`${baseUrl}/s/${document.token}`}
+                        문서 보기
                       </a>
                     </td>
                     <td>
-                      <div>{document.bizgo_status || "-"}</div>
-                      <div className="muted">{document.recipient_phone || "-"}</div>
+                      <div className="table-cell-title">{document.bizgo_status || "-"}</div>
+                      <div className="table-cell-copy">{document.recipient_phone || "-"}</div>
                     </td>
                     <td>
-                      <div>{String(document.created_at).slice(0, 10)}</div>
-                      <div className="muted">
+                      <div className="table-cell-title">
+                        {String(document.created_at).slice(0, 10)}
+                      </div>
+                      <div className="table-cell-copy">
                         {document.signed_at ? `서명 ${String(document.signed_at).slice(0, 10)}` : ""}
                       </div>
                     </td>

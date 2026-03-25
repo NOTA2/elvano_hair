@@ -1,19 +1,6 @@
 import { cookies } from "next/headers";
 import { getDocumentByToken, markDocumentViewed } from "@/lib/db";
-
-function documentResponse(document) {
-  return {
-    token: document.token,
-    branch_name: document.branch_name,
-    document_title: document.document_title,
-    document_date: document.document_date,
-    customer_name: document.customer_name,
-    phone_last4: document.phone_last4,
-    designer_name: document.designer_name,
-    rendered_content: document.rendered_content,
-    status: document.status
-  };
-}
+import { serializePublicDocument } from "@/lib/documents";
 
 export async function POST(request, { params }) {
   const document = await getDocumentByToken(params.token);
@@ -41,6 +28,6 @@ export async function POST(request, { params }) {
   });
 
   return Response.json({
-    document: documentResponse(document)
+    document: serializePublicDocument(document)
   });
 }
