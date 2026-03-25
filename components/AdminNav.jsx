@@ -80,6 +80,17 @@ function NavIcon({ kind }) {
     );
   }
 
+  if (kind === "approval") {
+    return (
+      <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="9" cy="8" r="3" />
+        <path d="M4.5 19a4.5 4.5 0 0 1 9 0" />
+        <path d="M18 8v6" />
+        <path d="M15 11h6" />
+      </svg>
+    );
+  }
+
   return (
     <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />
@@ -119,7 +130,10 @@ function getNavGroups(session) {
   ) {
     groups.push({
       label: "Access",
-      items: [{ href: "/admin/admin-users", label: "권한 관리", icon: "users" }]
+      items: [
+        { href: "/admin/access-requests", label: "권한 부여", icon: "approval" },
+        { href: "/admin/admin-users", label: "권한 관리", icon: "users" }
+      ]
     });
   }
 

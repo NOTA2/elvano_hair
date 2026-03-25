@@ -20,12 +20,15 @@ function statusClass(status) {
 export default async function AdminDashboardPage() {
   const session = await requireAdminSession();
   const branchId = isBranchMaster(session) ? session.branch_id : undefined;
-  const templates = await listTemplates();
-  const notificationTemplates = await listNotificationTemplates();
-  const documents = await listDocuments({ branchId });
-  const admins = await listAdminUsers({ branchId });
-  const branches = await listBranches({ branchId });
-  const designers = await listDesigners({ branchId });
+  const [templates, notificationTemplates, documents, admins, branches, designers] =
+    await Promise.all([
+      listTemplates(),
+      listNotificationTemplates(),
+      listDocuments({ branchId }),
+      listAdminUsers({ branchId }),
+      listBranches({ branchId }),
+      listDesigners({ branchId })
+    ]);
   const signedCount = documents.filter((item) => item.status === "signed").length;
   const pendingCount = documents.filter((item) => item.status === "pending").length;
   const signRate = documents.length === 0 ? 0 : Math.round((signedCount / documents.length) * 100);

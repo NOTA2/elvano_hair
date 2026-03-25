@@ -1,18 +1,16 @@
 import AdminSectionIntro from "@/components/AdminSectionIntro";
+import LazyRichTextEditor from "@/components/LazyRichTextEditor";
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
-import RichTextEditor from "@/components/RichTextEditor";
 import SelectField from "@/components/SelectField";
 import { requireBranchManagerSession } from "@/lib/auth";
-import { listTemplates } from "@/lib/db";
+import { countTemplates, listTemplatesPage } from "@/lib/db";
 import {
-  paginateItems,
   parseDirection,
   parsePage,
   parsePageSize,
-  parseSort,
-  sortItems
+  parseSort
 } from "@/lib/pagination";
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -41,31 +39,31 @@ function templateStatusClass(template) {
 }
 
 export default async function AdminTemplatesPage({ searchParams }) {
-  await requireBranchManagerSession();
-  const resolvedSearchParams = await searchParams;
-  const templates = await listTemplates({ includeDeleted: true });
-  const activeCount = templates.filter((template) => template.status === "active").length;
-  const inactiveCount = templates.filter((template) => template.status === "inactive").length;
-  const deletedCount = templates.filter((template) => template.status === "deleted").length;
+  const [resolvedSearchParams] = await Promise.all([
+    searchParams,
+    requireBranchManagerSession()
+  ]);
   const pageSize = parsePageSize(
     resolvedSearchParams,
     "pageSize",
     PAGE_SIZE_OPTIONS,
     DEFAULT_PAGE_SIZE
   );
+  const currentPage = parsePage(resolvedSearchParams);
   const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
   const direction = parseDirection(resolvedSearchParams, "direction", "desc");
-  const sortedTemplates = sortItems(templates, sortKey, direction, {
-    updated_at: (template) => template.updated_at,
-    name: (template) => template.name,
-    document_title: (template) => template.document_title,
-    status: (template) => template.status
-  });
-  const pagination = paginateItems(
-    sortedTemplates,
-    parsePage(resolvedSearchParams),
-    pageSize
-  );
+  const [templatesPage, activeCount, inactiveCount, deletedCount] = await Promise.all([
+    listTemplatesPage({
+      includeDeleted: true,
+      page: currentPage,
+      pageSize,
+      sortKey,
+      direction
+    }),
+    countTemplates({ status: "active" }),
+    countTemplates({ status: "inactive" }),
+    countTemplates({ status: "deleted" })
+  ]);
 
   return (
     <div className="section-stack">
@@ -78,7 +76,7 @@ export default async function AdminTemplatesPage({ searchParams }) {
         <div className="panel-toolbar">
           <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
-              <span className="metric-pill">전체 {templates.length}</span>
+              <span className="metric-pill">전체 {templatesPage.totalCount}</span>
               <span className="metric-pill">활성 {activeCount}</span>
               <span className="metric-pill">중지 {inactiveCount}</span>
               <span className="metric-pill">삭제 {deletedCount}</span>
@@ -110,7 +108,7 @@ export default async function AdminTemplatesPage({ searchParams }) {
                   </label>
                   <div className="field-full">
                     <span className="field-label">안내문 본문</span>
-                    <RichTextEditor name="content" />
+                    <LazyRichTextEditor name="content" />
                   </div>
                   <label className="field">
                     <span className="field-label">상태</span>
@@ -127,12 +125,12 @@ export default async function AdminTemplatesPage({ searchParams }) {
             </ModalDialog>
           </div>
         </div>
-        {pagination.items.length === 0 ? (
+        {templatesPage.items.length === 0 ? (
           <div className="empty-state">등록된 템플릿이 없습니다.</div>
         ) : (
           <>
             <div className="stack-list">
-              {pagination.items.map((template) => (
+              {templatesPage.items.map((template) => (
                 <div key={template.id} className="list-row-card">
                   <div className="list-row-copy">
                     <div className="list-row-title">{template.name}</div>
@@ -168,7 +166,7 @@ export default async function AdminTemplatesPage({ searchParams }) {
                           </label>
                           <div className="field-full">
                             <span className="field-label">본문</span>
-                            <RichTextEditor name="content" defaultValue={template.content} />
+                            <LazyRichTextEditor name="content" defaultValue={template.content} />
                           </div>
                           <label className="field">
                             <span className="field-label">상태</span>
@@ -189,8 +187,8 @@ export default async function AdminTemplatesPage({ searchParams }) {
               ))}
             </div>
             <PaginationControls
-              currentPage={pagination.currentPage}
-              totalPages={pagination.totalPages}
+              currentPage={templatesPage.currentPage}
+              totalPages={templatesPage.totalPages}
               searchParams={resolvedSearchParams}
             />
           </>
