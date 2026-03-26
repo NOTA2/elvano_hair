@@ -11,6 +11,7 @@ import { getBaseUrl } from "@/lib/config";
 import {
   createDocument,
   getBranchById,
+  getDocumentByToken,
   getDesignerById,
   getNotificationTemplateById,
   getTemplateById,
@@ -52,6 +53,62 @@ export async function POST(request) {
   const headerStore = await headers();
   const formData = await request.formData();
   const intent = formData.get("intent");
+
+  if (intent === "resend") {
+    const token = String(formData.get("token") || "").trim();
+    const document = token ? await getDocumentByToken(token) : null;
+
+    if (!document || !document.notification_template_id) {
+      return redirectBack(headerStore, {
+        message: "재발송할 알림톡 템플릿이 없습니다.",
+        messageType: "error"
+      });
+    }
+
+    if (!isIntegratedMaster(session) && Number(session.branch_id) !== Number(document.branch_id)) {
+      return redirectBack(headerStore, {
+        message: "해당 문서에 재발송할 권한이 없습니다.",
+        messageType: "error"
+      });
+    }
+
+    const branch = await getBranchById(document.branch_id);
+    const notificationTemplate = await getNotificationTemplateById(
+      document.notification_template_id
+    );
+
+    if (!branch || !notificationTemplate || !notificationTemplate.is_active || notificationTemplate.deleted_at) {
+      return redirectBack(headerStore, {
+        message: "재발송에 사용할 알림톡 템플릿을 찾을 수 없습니다.",
+        messageType: "error"
+      });
+    }
+
+    try {
+      const resolvedNotificationTemplate = await resolveBizgoNotificationTemplateForSend(
+        notificationTemplate
+      );
+      const bizgoResponse = await sendBizgoAlimtalk({
+        notificationTemplate: resolvedNotificationTemplate,
+        document: {
+          ...document,
+          branch_phone: branch.phone || ""
+        }
+      });
+
+      await updateDocumentBizgo(document.token, bizgoResponse.status, bizgoResponse.response);
+      return redirectBack(headerStore, {
+        message: bizgoResponse.message,
+        messageType: bizgoResponse.status === "sent" ? "success" : "info"
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "알림톡 재발송 중 오류가 발생했습니다.";
+
+      await updateDocumentBizgo(document.token, "failed", { message });
+      return redirectBack(headerStore, { message, messageType: "error" });
+    }
+  }
 
   if (intent !== "create") {
     return redirectBack(headerStore);
@@ -138,7 +195,7 @@ export async function POST(request) {
           ? error.message
           : "알림톡 템플릿 상태를 확인하지 못해 문서 발급을 중단했습니다.";
 
-      return redirectBack(headerStore, { message });
+      return redirectBack(headerStore, { message, messageType: "error" });
     }
   }
 
@@ -178,12 +235,19 @@ export async function POST(request) {
           limit_date: values.limit_date
         }
       });
-      await updateDocumentBizgo(document.token, "sent", bizgoResponse);
+      await updateDocumentBizgo(document.token, bizgoResponse.status, bizgoResponse.response);
+      return redirectBack(headerStore, {
+        message: bizgoResponse.message,
+        messageType: bizgoResponse.status === "sent" ? "success" : "info"
+      });
     } catch (error) {
       await updateDocumentBizgo(document.token, "failed", { message: error.message });
-      return redirectBack(headerStore, { message: error.message });
+      return redirectBack(headerStore, {
+        message: error.message,
+        messageType: "error"
+      });
     }
   }
 
-  return redirectBack(headerStore, { message: "" });
+  return redirectBack(headerStore, { message: "", messageType: "" });
 }

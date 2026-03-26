@@ -48,6 +48,12 @@ function statusLabel(status) {
   return "대기";
 }
 
+function bizgoIndicator(status) {
+  return status === "sent"
+    ? { label: "✅", className: "success" }
+    : { label: "❌", className: "failed" };
+}
+
 function formatPhoneNumber(value) {
   const digits = String(value || "").replace(/\D/g, "");
 
@@ -120,17 +126,19 @@ export default async function AdminDocumentsPage({ searchParams }) {
     : allBranches.filter((branch) => Number(branch.id) === Number(session.branch_id));
   const baseUrl = getBaseUrl();
   const pageMessage = String(resolvedSearchParams?.message || "").trim();
+  const rawMessageType = String(resolvedSearchParams?.messageType || "").trim();
+  const pageMessageType =
+    rawMessageType === "success" || rawMessageType === "info" ? rawMessageType : "error";
 
   return (
     <div className="section-stack">
-      {pageMessage ? <AlertOnMount message={pageMessage} /> : null}
+      {pageMessage ? <AlertOnMount message={pageMessage} type={pageMessageType} /> : null}
       <AdminSectionIntro
         eyebrow="Issued Documents"
         title="발급된 문서 목록"
         description="최근에 생성된 순서대로 표시합니다. 새 문서 발급은 추가 버튼을 눌러 모달에서 진행합니다."
       />
       <section className="panel">
-        {pageMessage ? <p className="form-error">{pageMessage}</p> : null}
         <div className="panel-toolbar">
           <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
@@ -183,12 +191,16 @@ export default async function AdminDocumentsPage({ searchParams }) {
                     <th>고객 이름</th>
                     <th>문서 제목</th>
                     <th>생성일</th>
+                    <th>알림톡</th>
                     <th>열람</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {documentsPage.items.map((document) => (
-                    <tr key={document.id}>
+                  {documentsPage.items.map((document) => {
+                    const bizgoIndicatorState = bizgoIndicator(document.bizgo_status);
+
+                    return (
+                      <tr key={document.id}>
                       <td>
                         <span className={`badge ${statusClass(document.status)}`}>
                           {statusLabel(document.status)}
@@ -217,17 +229,36 @@ export default async function AdminDocumentsPage({ searchParams }) {
                         </div>
                       </td>
                       <td>
-                        <a
-                          className="button secondary table-action-button"
-                          href={`${baseUrl}/s/${document.token}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          문서 보기
-                        </a>
+                        <div className="table-cell-title">
+                          <span className={`bizgo-indicator ${bizgoIndicatorState.className}`}>
+                            {bizgoIndicatorState.label}
+                          </span>
+                        </div>
                       </td>
-                    </tr>
-                  ))}
+                      <td>
+                        <div className="inline-actions">
+                          <a
+                            className="button secondary table-action-button"
+                            href={`${baseUrl}/s/${document.token}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            문서 보기
+                          </a>
+                          {document.bizgo_status !== "sent" && document.notification_template_id ? (
+                            <form action="/api/admin/documents" method="post">
+                              <input type="hidden" name="intent" value="resend" />
+                              <input type="hidden" name="token" value={document.token} />
+                              <button type="submit" className="secondary table-action-button">
+                                재발송
+                              </button>
+                            </form>
+                          ) : null}
+                        </div>
+                      </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
