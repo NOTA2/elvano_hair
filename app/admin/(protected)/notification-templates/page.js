@@ -61,6 +61,10 @@ function inspectionClass(status) {
   return "soft";
 }
 
+function canSyncTemplate(template) {
+  return template.inspection_status !== "APR";
+}
+
 function trimPreview(text, maxLength = 120) {
   const normalized = String(text || "").replace(/\s+/g, " ").trim();
 
@@ -287,16 +291,22 @@ export default async function NotificationTemplatesPage({ searchParams }) {
                     {template.remote_dormant ? <span className="status-chip neutral">휴면</span> : null}
                     {template.status !== "deleted" ? (
                       <>
-                        <form action="/api/admin/notification-templates" method="post">
-                          <input type="hidden" name="intent" value="sync" />
-                          <input type="hidden" name="id" value={template.id} />
-                          <button type="submit" className="secondary">
-                            템플릿 조회
-                          </button>
-                        </form>
+                        {canSyncTemplate(template) ? (
+                          <form action="/api/admin/notification-templates" method="post">
+                            <input type="hidden" name="intent" value="sync" />
+                            <input type="hidden" name="id" value={template.id} />
+                            <button type="submit" className="secondary">
+                              템플릿 조회
+                            </button>
+                          </form>
+                        ) : null}
                         <ModalDialog
                           title={`${template.template_name || template.template_code} 수정`}
-                          description="Bizgo 콘솔에서 템플릿을 바꿨다면 템플릿 조회로 최신 내용을 다시 동기화하세요."
+                          description={
+                            canSyncTemplate(template)
+                              ? "Bizgo 콘솔에서 템플릿을 바꿨다면 템플릿 조회로 최신 내용을 다시 동기화하세요."
+                              : "승인 완료된 템플릿은 현재 저장된 정보로 사용합니다."
+                          }
                           triggerLabel="수정"
                           size="wide"
                         >

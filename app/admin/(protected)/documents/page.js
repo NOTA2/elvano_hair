@@ -1,5 +1,6 @@
 import AdminDocumentIssueForm from "@/components/AdminDocumentIssueForm";
 import AdminSectionIntro from "@/components/AdminSectionIntro";
+import AlertOnMount from "@/components/AlertOnMount";
 import DocumentsListControls from "@/components/DocumentsListControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
@@ -118,15 +119,18 @@ export default async function AdminDocumentsPage({ searchParams }) {
     ? allBranches
     : allBranches.filter((branch) => Number(branch.id) === Number(session.branch_id));
   const baseUrl = getBaseUrl();
+  const pageMessage = String(resolvedSearchParams?.message || "").trim();
 
   return (
     <div className="section-stack">
+      {pageMessage ? <AlertOnMount message={pageMessage} /> : null}
       <AdminSectionIntro
         eyebrow="Issued Documents"
         title="발급된 문서 목록"
         description="최근에 생성된 순서대로 표시합니다. 새 문서 발급은 추가 버튼을 눌러 모달에서 진행합니다."
       />
       <section className="panel">
+        {pageMessage ? <p className="form-error">{pageMessage}</p> : null}
         <div className="panel-toolbar">
           <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
