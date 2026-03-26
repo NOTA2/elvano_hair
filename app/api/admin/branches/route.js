@@ -12,7 +12,7 @@ import {
   updateBranch
 } from "@/lib/db";
 
-const PHONE_PATTERN = /^0\d{1,2}-\d{3,4}-\d{4}$/;
+const PHONE_PATTERN = /^0\d{1,2}-\d{3,4}-\d{3,4}$/;
 
 function redirectBack(headerStore, params = {}) {
   const url = new URL(headerStore.get("referer") || "/admin/branches", getBaseUrl());

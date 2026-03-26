@@ -23,7 +23,8 @@ const SORT_OPTIONS = [
 ];
 const ERROR_MESSAGES = {
   phone_required: "지점 전화번호를 입력해 주세요.",
-  phone_invalid: "지점 전화번호는 031-1234-5678 형식으로 입력해 주세요."
+  phone_invalid:
+    "지점 전화번호는 02-123-4567 또는 031-1234-5678 형식으로 입력해 주세요."
 };
 
 export default async function BranchesPage({ searchParams }) {
@@ -107,10 +108,10 @@ export default async function BranchesPage({ searchParams }) {
                       <span className="field-label">지점 전화번호</span>
                       <input
                         name="phone"
-                        placeholder="031-1234-5678"
+                        placeholder="02-123-4567 / 031-1234-5678"
                         inputMode="tel"
-                        pattern="0[0-9]{1,2}-[0-9]{3,4}-[0-9]{4}"
-                        title="지점 전화번호는 031-1234-5678 형식으로 입력해 주세요."
+                        pattern="0[0-9]{1,2}-[0-9]{3,4}-[0-9]{3,4}"
+                        title="지점 전화번호는 02-123-4567 또는 031-1234-5678 형식으로 입력해 주세요."
                         required
                       />
                     </label>
@@ -180,10 +181,10 @@ export default async function BranchesPage({ searchParams }) {
                             <input
                               name="phone"
                               defaultValue={branch.phone || ""}
-                              placeholder="031-1234-5678"
+                              placeholder="02-123-4567 / 031-1234-5678"
                               inputMode="tel"
-                              pattern="0[0-9]{1,2}-[0-9]{3,4}-[0-9]{4}"
-                              title="지점 전화번호는 031-1234-5678 형식으로 입력해 주세요."
+                              pattern="0[0-9]{1,2}-[0-9]{3,4}-[0-9]{3,4}"
+                              title="지점 전화번호는 02-123-4567 또는 031-1234-5678 형식으로 입력해 주세요."
                               required
                             />
                           </label>
