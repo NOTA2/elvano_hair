@@ -97,7 +97,13 @@ export default async function AccessRequestsPage({ searchParams }) {
       <AdminSectionIntro
         eyebrow="Pending Approval"
         title="권한 부여"
-        description="권한이 없는 카카오 로그인 시도 계정을 확인하고, 필요한 계정에만 관리자 권한을 부여합니다."
+        description={
+          <>
+            권한이 없는 카카오 로그인 시도 계정을 확인하고,
+            <br />
+            필요한 계정에만 관리자 권한을 부여합니다.
+          </>
+        }
       />
       <section className="panel">
         <div className="panel-toolbar">
@@ -138,7 +144,11 @@ export default async function AccessRequestsPage({ searchParams }) {
                     <span className="status-chip soft">{attempt.last_status}</span>
                     <ModalDialog
                       title={`${attempt.nickname || attempt.kakao_user_id} 권한 부여`}
-                      description="역할과 지점을 선택해 관리자 권한을 부여합니다."
+                      description={
+                        <>
+                          역할과 지점을 선택해 관리자 권한을 부여합니다.
+                        </>
+                      }
                       triggerLabel="권한 부여"
                     >
                       <AdminUserRoleForm

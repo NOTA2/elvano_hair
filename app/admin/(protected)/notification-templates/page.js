@@ -1,8 +1,8 @@
+import Link from "next/link";
 import AdminSectionIntro from "@/components/AdminSectionIntro";
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
-import TemplateVariableGuide from "@/components/TemplateVariableGuide";
 import { requireBranchManagerSession } from "@/lib/auth";
 import {
   countNotificationTemplates,
@@ -77,88 +77,25 @@ function trimPreview(text, maxLength = 120) {
     : normalized;
 }
 
-function buttonSummary(template) {
-  if (!template.button_name || !template.button_type) {
-    return "버튼 없음";
-  }
-
-  const urls = [
-    template.button_url_mobile,
-    template.button_url_pc,
-    template.button_scheme_android,
-    template.button_scheme_ios,
-    template.button_tel_number
-  ].filter(Boolean);
-
-  return `${template.button_name} (${template.button_type})${urls.length ? ` · ${urls[0]}` : ""}`;
-}
-
-function NotificationTemplateDetails({ template }) {
-  if (!template) {
-    return null;
-  }
-
-  return (
-    <div className="section-stack">
-      <div className="record-card compact">
-        <div className="record-title">Bizgo 조회 결과</div>
-        <div className="record-meta">
-          템플릿명: {template.template_name || "-"}
-          <br />
-          템플릿 코드: {template.template_code || "-"}
-          <br />
-          검수 상태: {inspectionStatusLabel(template.inspection_status || "REG")}
-          <br />
-          마지막 동기화:{" "}
-          {template.last_synced_at
-            ? String(template.last_synced_at).slice(0, 16).replace("T", " ")
-            : "-"}
-        </div>
-      </div>
-      <div className="record-card compact">
-        <div className="record-title">본문 미리보기</div>
-        <div className="record-meta preformatted-copy">{template.message || "본문 없음"}</div>
-      </div>
-      <div className="record-card compact">
-        <div className="record-title">버튼 설정</div>
-        <div className="record-meta">{buttonSummary(template)}</div>
-      </div>
-    </div>
-  );
-}
-
-function NotificationTemplateForm({
-  template = null,
-  intent
-}) {
-  const actionLabel = intent === "create" ? "템플릿 코드 등록" : "등록 정보 저장";
-
+function NotificationTemplateForm() {
   return (
     <>
       <form action="/api/admin/notification-templates" method="post">
-        <input type="hidden" name="intent" value={intent} />
-        <input
-          type="hidden"
-          name="status"
-          value={template?.status === "inactive" ? "inactive" : "active"}
-        />
-        {template ? <input type="hidden" name="id" value={template.id} /> : null}
+        <input type="hidden" name="intent" value="create" />
         <div className="form-grid">
           <label className="field">
             <span className="field-label">템플릿 코드</span>
             <input
               name="template_code"
-              defaultValue={template?.template_code || ""}
               placeholder="Bizgo에 등록된 템플릿 코드"
               required
             />
           </label>
         </div>
         <div className="form-actions admin-form-actions">
-          <button type="submit">{actionLabel}</button>
+          <button type="submit">템플릿 코드 등록</button>
         </div>
       </form>
-      <NotificationTemplateDetails template={template} />
     </>
   );
 }
@@ -199,39 +136,43 @@ export default async function NotificationTemplatesPage({ searchParams }) {
   return (
     <div className="section-stack">
       <AdminSectionIntro
-        eyebrow="Bizgo Guide"
-        title="알림톡 치환값 안내"
-        description="Bizgo 콘솔에서 알림톡 템플릿을 직접 등록한 뒤, 이 화면에서는 템플릿 코드만 연결합니다. 버튼 URL의 문서 링크는 프로토콜이 빠진 값으로 치환됩니다."
+        eyebrow="Quick Help"
+        title="알림톡 템플릿 준비가 처음이신가요?"
+        description={
+          <>
+            메뉴얼에서 준비 순서와 Bizgo에 넣는 자동 입력 문구를 먼저 확인할 수
+            있습니다.
+            <br />
+            알림톡 템플릿은 Bizgo 콘솔에서 만든 뒤, 이 화면에서는 코드만 등록합니다.
+          </>
+        }
         actions={
-          <a
-            className="button secondary"
-            href={BIZGO_TEMPLATE_CONSOLE_URL}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Bizgo 콘솔 열기
-          </a>
+          <>
+            <Link className="button secondary" href="/admin/manual">
+              메뉴얼 보기
+            </Link>
+            <a
+              className="button secondary"
+              href={BIZGO_TEMPLATE_CONSOLE_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Bizgo 콘솔 열기
+            </a>
+          </>
         }
       />
-      <section className="panel">
-        <TemplateVariableGuide
-          title="알림톡 템플릿 치환값 안내"
-          description="지점명/문서제목/고객명 같은 값을 한글 의미와 영문 변수명으로 함께 안내합니다."
-        />
-        <div className="record-card compact">
-          <div className="record-meta">
-            Bizgo 콘솔에서는 위 <code className="code">{"{{branch_name}}"}</code> 대신{" "}
-            <code className="code">{"#{branch_name}"}</code> 형식으로 입력하세요.
-            버튼 URL의 문서 링크는 <code className="code">{"https://#{document_url}"}</code>{" "}
-            형태로 등록하면 되고, 실제 치환값 <code className="code">document_url</code>
-            에는 프로토콜이 포함되지 않습니다.
-          </div>
-        </div>
-      </section>
       <AdminSectionIntro
         eyebrow="Alimtalk Template Center"
         title="알림톡 템플릿 관리"
-        description="알림톡 템플릿은 Bizgo 콘솔에서 직접 등록하고, 여기서는 템플릿 코드를 공용 목록에 연결해 사용합니다. 저장 시 템플릿 조회 API로 원격 정보를 확인해 로컬 목록에 동기화합니다."
+        description={
+          <>
+            Bizgo 콘솔에서 만든 알림톡을 여기에서 연결해 사용합니다.
+            <br />
+            템플릿 코드를 등록하면 목록에서 승인 상태와 사용 여부를 함께 확인할 수
+            있습니다.
+          </>
+        }
       />
       <section className="panel">
         <div className="panel-toolbar">
@@ -254,11 +195,16 @@ export default async function NotificationTemplatesPage({ searchParams }) {
             <div className="inline-actions">
               <ModalDialog
                 title="알림톡 템플릿 코드 등록"
-                description="Bizgo 콘솔에 이미 등록된 알림톡 템플릿 코드를 로컬 목록에 연결합니다."
+                description={
+                  <>
+                    Bizgo 콘솔에 이미 등록된 알림톡 템플릿 코드를 로컬 목록에
+                    연결합니다.
+                  </>
+                }
                 triggerLabel="템플릿 코드 등록"
                 size="wide"
               >
-                <NotificationTemplateForm intent="create" />
+                <NotificationTemplateForm />
               </ModalDialog>
             </div>
           </div>
@@ -285,7 +231,7 @@ export default async function NotificationTemplatesPage({ searchParams }) {
                       {notificationLifecycleLabel(template)}
                     </span>
                     <span className={`status-chip ${inspectionClass(template.inspection_status)}`}>
-                      검수 {inspectionStatusLabel(template.inspection_status || "REG")}
+                      {inspectionStatusLabel(template.inspection_status || "REG")}
                     </span>
                     {template.remote_block ? <span className="status-chip neutral">차단</span> : null}
                     {template.remote_dormant ? <span className="status-chip neutral">휴면</span> : null}
@@ -300,18 +246,6 @@ export default async function NotificationTemplatesPage({ searchParams }) {
                             </button>
                           </form>
                         ) : null}
-                        <ModalDialog
-                          title={`${template.template_name || template.template_code} 수정`}
-                          description={
-                            canSyncTemplate(template)
-                              ? "Bizgo 콘솔에서 템플릿을 바꿨다면 템플릿 조회로 최신 내용을 다시 동기화하세요."
-                              : "승인 완료된 템플릿은 현재 저장된 정보로 사용합니다."
-                          }
-                          triggerLabel="수정"
-                          size="wide"
-                        >
-                          <NotificationTemplateForm template={template} intent="update" />
-                        </ModalDialog>
                         <form action="/api/admin/notification-templates" method="post">
                           <input type="hidden" name="intent" value="delete" />
                           <input type="hidden" name="id" value={template.id} />

@@ -70,7 +70,13 @@ export default async function AdminTemplatesPage({ searchParams }) {
       <AdminSectionIntro
         eyebrow="Document Template Studio"
         title="문서 템플릿 관리"
-        description="등록된 문서 템플릿 목록을 먼저 보고, 추가와 수정은 모달에서 처리합니다. 안내문 본문은 고객 문서 발급 시 치환값으로 완성됩니다."
+        description={
+          <>
+            등록된 문서 템플릿 목록을 먼저 보고, 추가와 수정은 모달에서 처리합니다.
+            <br />
+            안내문 본문은 고객 문서 발급 시 치환값으로 완성됩니다.
+          </>
+        }
       />
       <section className="panel">
         <div className="panel-toolbar">
@@ -91,7 +97,13 @@ export default async function AdminTemplatesPage({ searchParams }) {
             />
             <ModalDialog
               title="문서 템플릿 추가"
-              description="새 안내문 템플릿을 등록합니다. 본문은 문서 발급 시 실제 고객 데이터로 치환됩니다."
+              description={
+                <>
+                  새 안내문 템플릿을 등록합니다.
+                  <br />
+                  본문은 문서 발급 시 실제 고객 데이터로 치환됩니다.
+                </>
+              }
               triggerLabel="템플릿 추가"
               size="wide"
             >
@@ -144,7 +156,14 @@ export default async function AdminTemplatesPage({ searchParams }) {
                     </span>
                     <ModalDialog
                       title={`${template.name} 수정`}
-                      description="문서 템플릿 본문과 상태를 수정할 수 있습니다. 삭제 상태로 두면 새 문서 발급에는 나오지 않지만 기존 문서는 그대로 유지됩니다."
+                      description={
+                        <>
+                          문서 템플릿 본문과 상태를 수정할 수 있습니다.
+                          <br />
+                          삭제 상태로 두면 새 문서 발급에는 나오지 않지만 기존 문서는
+                          그대로 유지됩니다.
+                        </>
+                      }
                       triggerLabel="수정"
                       size="wide"
                     >

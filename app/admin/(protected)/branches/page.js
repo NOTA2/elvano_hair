@@ -21,6 +21,10 @@ const SORT_OPTIONS = [
   { value: "created_at", label: "생성일" },
   { value: "is_active", label: "사용 여부" }
 ];
+const ERROR_MESSAGES = {
+  phone_required: "지점 전화번호를 입력해 주세요.",
+  phone_invalid: "지점 전화번호는 031-1234-5678 형식으로 입력해 주세요."
+};
 
 export default async function BranchesPage({ searchParams }) {
   const [session, resolvedSearchParams] = await Promise.all([
@@ -38,6 +42,10 @@ export default async function BranchesPage({ searchParams }) {
   const currentPage = parsePage(resolvedSearchParams);
   const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
   const direction = parseDirection(resolvedSearchParams, "direction", "desc");
+  const errorMessage =
+    String(resolvedSearchParams?.message || "").trim() ||
+    ERROR_MESSAGES[String(resolvedSearchParams?.error || "")] ||
+    "";
   const [branchesPage, activeBranches] = await Promise.all([
     listBranchesPage({
       branchId,
@@ -54,7 +62,13 @@ export default async function BranchesPage({ searchParams }) {
       <AdminSectionIntro
         eyebrow="Branch Control"
         title="지점 관리"
-        description="지점은 문서, 디자이너, 지점 마스터 권한의 기준 단위입니다. 목록을 먼저 확인하고 필요할 때만 모달에서 추가 또는 수정합니다."
+        description={
+          <>
+            지점은 문서, 디자이너, 지점 마스터 권한의 기준 단위입니다.
+            <br />
+            목록을 먼저 확인하고 필요할 때만 모달에서 추가 또는 수정합니다.
+          </>
+        }
       />
       <section className="panel">
         <div className="panel-toolbar">
@@ -74,7 +88,12 @@ export default async function BranchesPage({ searchParams }) {
             {canCreateBranch ? (
               <ModalDialog
                 title="지점 추가"
-                description="새 지점을 등록하면 디자이너, 템플릿, 지점 마스터 권한의 기준으로 사용할 수 있습니다."
+                description={
+                  <>
+                    새 지점을 등록하면 디자이너, 템플릿, 지점 마스터 권한의 기준으로
+                    사용할 수 있습니다.
+                  </>
+                }
                 triggerLabel="지점 추가"
               >
                 <form action="/api/admin/branches" method="post">
@@ -86,7 +105,14 @@ export default async function BranchesPage({ searchParams }) {
                     </label>
                     <label className="field">
                       <span className="field-label">지점 전화번호</span>
-                      <input name="phone" placeholder="0311234567" required />
+                      <input
+                        name="phone"
+                        placeholder="031-1234-5678"
+                        inputMode="tel"
+                        pattern="0[0-9]{1,2}-[0-9]{3,4}-[0-9]{4}"
+                        title="지점 전화번호는 031-1234-5678 형식으로 입력해 주세요."
+                        required
+                      />
                     </label>
                     <label className="field">
                       <span className="field-label">사용 여부</span>
@@ -113,6 +139,7 @@ export default async function BranchesPage({ searchParams }) {
             지점 마스터는 본인 지점의 정보만 수정할 수 있습니다.
           </div>
         ) : null}
+        {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
 
         {branchesPage.items.length === 0 ? (
           <div className="empty-state">등록된 지점이 없습니다.</div>
@@ -133,7 +160,11 @@ export default async function BranchesPage({ searchParams }) {
                     </span>
                     <ModalDialog
                       title={`${branch.name} 지점 수정`}
-                      description="지점명, 상태, 설명을 수정할 수 있습니다."
+                      description={
+                        <>
+                          지점명, 상태, 설명을 수정할 수 있습니다.
+                        </>
+                      }
                       triggerLabel="수정"
                     >
                       <form action="/api/admin/branches" method="post">
@@ -149,7 +180,10 @@ export default async function BranchesPage({ searchParams }) {
                             <input
                               name="phone"
                               defaultValue={branch.phone || ""}
-                              placeholder="0311234567"
+                              placeholder="031-1234-5678"
+                              inputMode="tel"
+                              pattern="0[0-9]{1,2}-[0-9]{3,4}-[0-9]{4}"
+                              title="지점 전화번호는 031-1234-5678 형식으로 입력해 주세요."
                               required
                             />
                           </label>
