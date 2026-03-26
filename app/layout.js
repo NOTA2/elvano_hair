@@ -12,8 +12,8 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ko">
-      <body className="app-body">
+    <html lang="ko" suppressHydrationWarning>
+      <body className="app-body" suppressHydrationWarning>
         {children}
         <Suspense fallback={null}>
           <GlobalLoadingOverlay />
