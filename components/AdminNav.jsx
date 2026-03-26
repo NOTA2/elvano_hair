@@ -91,6 +91,17 @@ function NavIcon({ kind }) {
     );
   }
 
+  if (kind === "manual") {
+    return (
+      <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 4.5A2.5 2.5 0 0 1 8.5 2H20v17H8.5A2.5 2.5 0 0 0 6 21.5V4.5Z" />
+        <path d="M6 4.5A2.5 2.5 0 0 0 3.5 2H2v17h1.5A2.5 2.5 0 0 1 6 21.5" />
+        <path d="M9 7h7" />
+        <path d="M9 11h7" />
+      </svg>
+    );
+  }
+
   return (
     <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />
@@ -136,6 +147,11 @@ function getNavGroups(session) {
       ]
     });
   }
+
+  groups.push({
+    label: "Guide",
+    items: [{ href: "/admin/manual", label: "메뉴얼", icon: "manual" }]
+  });
 
   return groups;
 }

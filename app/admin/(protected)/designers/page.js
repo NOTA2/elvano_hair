@@ -86,7 +86,13 @@ export default async function DesignersPage({ searchParams }) {
       <AdminSectionIntro
         eyebrow="Designer Setup"
         title="디자이너 관리"
-        description="문서 발급 시 선택할 담당자를 지점별로 등록합니다. 목록을 기본으로 보여주고, 추가와 수정은 모두 모달에서 처리합니다."
+        description={
+          <>
+            문서 발급 시 선택할 담당자를 지점별로 등록합니다.
+            <br />
+            목록을 기본으로 보여주고, 추가와 수정은 모두 모달에서 처리합니다.
+          </>
+        }
       />
       <section className="panel">
         <div className="panel-toolbar">
@@ -105,7 +111,12 @@ export default async function DesignersPage({ searchParams }) {
             />
             <ModalDialog
               title="디자이너 추가"
-              description="새 디자이너를 등록하면 문서 발급 시 담당 디자이너로 선택할 수 있습니다."
+              description={
+                <>
+                  새 디자이너를 등록하면 문서 발급 시 담당 디자이너로 선택할 수
+                  있습니다.
+                </>
+              }
               triggerLabel="디자이너 추가"
             >
               <form action="/api/admin/designers" method="post">
@@ -155,7 +166,11 @@ export default async function DesignersPage({ searchParams }) {
                     </span>
                     <ModalDialog
                       title={`${designer.name} 수정`}
-                      description="지점, 이름, 상태, 메모를 수정할 수 있습니다."
+                      description={
+                        <>
+                          지점, 이름, 상태, 메모를 수정할 수 있습니다.
+                        </>
+                      }
                       triggerLabel="수정"
                     >
                       <form action="/api/admin/designers" method="post">

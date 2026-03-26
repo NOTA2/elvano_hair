@@ -1,3 +1,4 @@
+import ReadableText from "@/components/ReadableText";
 import { TEMPLATE_VARIABLES } from "@/lib/templateVariables";
 
 export default function TemplateVariableGuide({
@@ -8,7 +9,9 @@ export default function TemplateVariableGuide({
     <div className="variable-guide">
       <div className="variable-guide-head">
         <div className="panel-title" style={{ fontSize: 18 }}>{title}</div>
-        <p className="panel-copy" style={{ margin: "6px 0 0" }}>{description}</p>
+        <ReadableText className="panel-copy" style={{ margin: "6px 0 0" }}>
+          {description}
+        </ReadableText>
       </div>
       <div className="variable-guide-grid">
         {TEMPLATE_VARIABLES.map((item) => (

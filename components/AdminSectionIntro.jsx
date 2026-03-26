@@ -1,3 +1,5 @@
+import ReadableText from "@/components/ReadableText";
+
 export default function AdminSectionIntro({
   eyebrow,
   title,
@@ -10,7 +12,7 @@ export default function AdminSectionIntro({
         <div>
           {eyebrow ? <div className="panel-eyebrow">{eyebrow}</div> : null}
           <h2 className="panel-title">{title}</h2>
-          {description ? <p className="panel-copy">{description}</p> : null}
+          {description ? <ReadableText className="panel-copy">{description}</ReadableText> : null}
         </div>
         {actions ? <div className="panel-actions">{actions}</div> : null}
       </div>

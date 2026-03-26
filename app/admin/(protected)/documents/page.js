@@ -136,7 +136,13 @@ export default async function AdminDocumentsPage({ searchParams }) {
       <AdminSectionIntro
         eyebrow="Issued Documents"
         title="발급된 문서 목록"
-        description="최근에 생성된 순서대로 표시합니다. 새 문서 발급은 추가 버튼을 눌러 모달에서 진행합니다."
+        description={
+          <>
+            최근에 생성된 순서대로 표시합니다.
+            <br />
+            새 문서 발급은 추가 버튼을 눌러 모달에서 진행합니다.
+          </>
+        }
       />
       <section className="panel">
         <div className="panel-toolbar">
@@ -161,7 +167,13 @@ export default async function AdminDocumentsPage({ searchParams }) {
             />
             <ModalDialog
               title="서명 문서 발급"
-              description="문서 템플릿과 알림톡 템플릿을 각각 선택해 고객 안내문을 발급합니다. 필요하면 Bizgo 알림톡으로 바로 전송할 수 있습니다."
+              description={
+                <>
+                  문서 템플릿과 알림톡 템플릿을 각각 선택해 고객 안내문을 발급합니다.
+                  <br />
+                  필요하면 Bizgo 알림톡으로 바로 전송할 수 있습니다.
+                </>
+              }
               triggerLabel="문서 발급"
               size="wide"
             >

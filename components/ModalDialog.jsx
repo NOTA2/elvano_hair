@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import ReadableText from "@/components/ReadableText";
 
 export default function ModalDialog({
   title,
@@ -46,7 +47,9 @@ export default function ModalDialog({
           <div className="modal-head">
             <div>
               <div className="panel-title modal-title">{title}</div>
-              {description ? <p className="panel-copy modal-copy">{description}</p> : null}
+              {description ? (
+                <ReadableText className="panel-copy modal-copy">{description}</ReadableText>
+              ) : null}
             </div>
             <button type="button" className="secondary modal-close-button" onClick={closeDialog}>
               닫기

@@ -150,7 +150,13 @@ export default async function AdminUsersPage({ searchParams }) {
       <AdminSectionIntro
         eyebrow="Allowed Admins"
         title="권한 관리"
-        description="허용된 관리자 목록을 보고 모달에서 권한과 지점을 수정합니다."
+        description={
+          <>
+            허용된 관리자 목록을 보고,
+            <br />
+            모달에서 권한과 지점을 수정합니다.
+          </>
+        }
       />
       <section className="panel">
         <div className="panel-toolbar">
@@ -202,7 +208,11 @@ export default async function AdminUsersPage({ searchParams }) {
                       <>
                         <ModalDialog
                           title={`${user.nickname || user.kakao_user_id} 권한 수정`}
-                          description="역할과 지점을 수정합니다."
+                          description={
+                            <>
+                              역할과 지점을 수정합니다.
+                            </>
+                          }
                           triggerLabel="수정"
                         >
                           <AdminUserRoleForm

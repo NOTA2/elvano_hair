@@ -942,6 +942,9 @@ td {
   max-width: 68ch;
   color: var(--admin-muted);
   line-height: 1.66;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  line-break: strict;
 }
 
 .panel-kpi-row,
@@ -993,6 +996,150 @@ td {
   color: var(--admin-brand-dark);
   font-size: 13px;
   font-weight: 700;
+}
+
+.manual-overview-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.manual-step-list {
+  display: grid;
+  gap: 14px;
+}
+
+.manual-step-card {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 20px 22px;
+  border: 1px solid var(--admin-line);
+  border-radius: 24px;
+  background: #fbfcfe;
+}
+
+.manual-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #ebf2fb;
+  color: var(--admin-brand-dark);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.manual-step-copy {
+  min-width: 0;
+}
+
+.manual-step-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.manual-step-title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.3;
+  color: var(--admin-ink);
+}
+
+.manual-step-description {
+  margin: 8px 0 0;
+  color: var(--admin-muted);
+  line-height: 1.7;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  line-break: strict;
+}
+
+.manual-step-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.manual-callout {
+  padding: 16px 18px;
+  border: 1px solid #dce8f7;
+  border-radius: 18px;
+  background: #f6f9fe;
+  color: var(--admin-brand-dark);
+  line-height: 1.7;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  line-break: strict;
+}
+
+.manual-note-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #f2f4f8;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.manual-note-chip.emphasize {
+  background: #ebf2fb;
+  color: var(--admin-brand-dark);
+}
+
+.manual-variable-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.manual-variable-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--admin-line);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.manual-variable-row.compact {
+  padding: 12px 14px;
+}
+
+.manual-variable-copy {
+  min-width: 0;
+}
+
+.manual-variable-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--admin-ink);
+}
+
+.manual-variable-help {
+  margin-top: 4px;
+  color: var(--admin-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  line-break: strict;
+}
+
+.manual-example-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
 .panel-kpi-row {
@@ -1124,6 +1271,9 @@ td {
   color: var(--admin-muted);
   font-size: 14px;
   line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  line-break: strict;
 }
 
 .list-row-actions {
@@ -1162,6 +1312,9 @@ td {
   color: var(--admin-muted);
   font-size: 14px;
   line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  line-break: strict;
 }
 
 .bizgo-indicator {
@@ -2311,6 +2464,20 @@ td {
     min-height: 92px;
     padding: 16px 18px;
   }
+
+  .manual-step-card {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .manual-step-action {
+    justify-content: flex-start;
+  }
+
+  .manual-variable-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 1180px) {
@@ -2354,6 +2521,16 @@ td {
 
   .home-stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .manual-variable-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .manual-variable-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -2425,5 +2602,9 @@ td {
 
   .home-rail {
     padding: 20px 18px;
+  }
+
+  .manual-variable-grid {
+    grid-template-columns: 1fr;
   }
 }
