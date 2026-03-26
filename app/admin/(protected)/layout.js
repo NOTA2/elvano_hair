@@ -1,14 +1,18 @@
 import AdminNav from "@/components/AdminNav";
+import { listBranches } from "@/lib/db";
 import { requireAdminSession } from "@/lib/auth";
 
 export default async function ProtectedAdminLayout({ children }) {
   const session = await requireAdminSession();
+  const branchOptions = session.is_system_master
+    ? await listBranches({ activeOnly: true })
+    : [];
 
   return (
     <main className="page-shell admin-shell">
       <div className="admin-layout admin-workbench">
         <aside className="admin-sidebar">
-          <AdminNav session={session} />
+          <AdminNav session={session} branchOptions={branchOptions} />
         </aside>
         <section className="admin-main">
           <div className="admin-main-inner">

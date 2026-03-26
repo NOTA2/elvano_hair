@@ -128,6 +128,11 @@ export default function SelectField({
   }, [isOpen]);
 
   function commitValue(nextValue) {
+    if (String(nextValue) === String(currentValue)) {
+      setIsOpen(false);
+      return;
+    }
+
     if (!isControlled) {
       setInternalValue(nextValue);
     }

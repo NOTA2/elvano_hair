@@ -38,6 +38,11 @@ export default function DocumentsListControls({
 
     params.delete(pageParam);
     const query = params.toString();
+
+    if (query === searchParams.toString()) {
+      return;
+    }
+
     startGlobalLoading();
     router.push(query ? `${pathname}?${query}` : pathname);
   }
