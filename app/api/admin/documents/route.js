@@ -3,7 +3,10 @@ import {
   getRouteSession,
   isIntegratedMaster
 } from "@/lib/auth";
-import { sendBizgoAlimtalk } from "@/lib/bizgo";
+import {
+  resolveBizgoNotificationTemplateForSend,
+  sendBizgoAlimtalk
+} from "@/lib/bizgo";
 import { getBaseUrl } from "@/lib/config";
 import {
   createDocument,
@@ -20,8 +23,19 @@ import {
   toHtmlTemplateValues
 } from "@/lib/templateContent";
 
-function redirectBack(headerStore) {
-  return Response.redirect(headerStore.get("referer") || "/admin/documents", 302);
+function redirectBack(headerStore, params = {}) {
+  const url = new URL(headerStore.get("referer") || "/admin/documents", getBaseUrl());
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") {
+      url.searchParams.delete(key);
+      return;
+    }
+
+    url.searchParams.set(key, String(value));
+  });
+
+  return Response.redirect(url.toString(), 302);
 }
 
 function normalizePhone(value) {
@@ -111,11 +125,28 @@ export async function POST(request) {
     designer_name: designer.name
   });
 
+  let resolvedNotificationTemplate = notificationTemplate;
+
+  if (sendAlimtalk && notificationTemplate) {
+    try {
+      resolvedNotificationTemplate = await resolveBizgoNotificationTemplateForSend(
+        notificationTemplate
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "알림톡 템플릿 상태를 확인하지 못해 문서 발급을 중단했습니다.";
+
+      return redirectBack(headerStore, { message });
+    }
+  }
+
   const token = createDocumentToken();
   const document = await createDocument({
     token,
     template_id: template.id,
-    notification_template_id: notificationTemplate?.id || null,
+    notification_template_id: resolvedNotificationTemplate?.id || null,
     branch_id: branch.id,
     branch_name: branch.name,
     designer_id: designer.id,
@@ -125,7 +156,7 @@ export async function POST(request) {
     phone_last4: values.phone_last4,
     recipient_phone: recipientPhone,
     designer_name: designer.name,
-    notification_template_name: notificationTemplate?.template_name || null,
+    notification_template_name: resolvedNotificationTemplate?.template_name || null,
     rendered_content: normalizeTemplateContent(
       fillTemplate(
         content,
@@ -137,10 +168,10 @@ export async function POST(request) {
     )
   });
 
-  if (sendAlimtalk && notificationTemplate) {
+  if (sendAlimtalk && resolvedNotificationTemplate) {
     try {
       const bizgoResponse = await sendBizgoAlimtalk({
-        notificationTemplate,
+        notificationTemplate: resolvedNotificationTemplate,
         document: {
           ...document,
           branch_phone: branch.phone || "",
@@ -150,8 +181,9 @@ export async function POST(request) {
       await updateDocumentBizgo(document.token, "sent", bizgoResponse);
     } catch (error) {
       await updateDocumentBizgo(document.token, "failed", { message: error.message });
+      return redirectBack(headerStore, { message: error.message });
     }
   }
 
-  return redirectBack(headerStore);
+  return redirectBack(headerStore, { message: "" });
 }
