@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { startGlobalLoading } from "@/components/GlobalLoadingOverlay";
 import LazyRichTextEditor from "@/components/LazyRichTextEditor";
 import SelectField from "@/components/SelectField";
 import { normalizeTemplateContent } from "@/lib/templateContent";
@@ -16,7 +17,13 @@ function getTodayKst() {
   return KST_DATE_FORMATTER.format(new Date());
 }
 
+function labelWithInactiveSuffix(item, label) {
+  return item?.is_active === false ? `${label} (비활성)` : label;
+}
+
 export default function AdminDocumentIssueForm({
+  mode = "create",
+  initialDocument = null,
   branchLocked = false,
   branchId,
   branchName,
@@ -25,25 +32,195 @@ export default function AdminDocumentIssueForm({
   documentTemplates,
   notificationTemplates
 }) {
-  const [selectedBranchId, setSelectedBranchId] = useState(branchId ? String(branchId) : "");
-  const [selectedDesignerId, setSelectedDesignerId] = useState("");
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
-  const [selectedNotificationTemplateId, setSelectedNotificationTemplateId] = useState("");
-  const [sendAlimtalk, setSendAlimtalk] = useState("1");
-  const [editorContent, setEditorContent] = useState("");
-  const [documentTitle, setDocumentTitle] = useState("");
-  const [documentDate, setDocumentDate] = useState(getTodayKst());
+  const isEditMode = mode === "edit";
+  const submitTimerRef = useRef(null);
+  const skipInitialTemplateSeedRef = useRef(isEditMode);
+
+  const branchOptions = useMemo(() => {
+    const next = [...branches];
+
+    if (
+      isEditMode &&
+      initialDocument?.branch_id &&
+      !next.some((branch) => Number(branch.id) === Number(initialDocument.branch_id))
+    ) {
+      next.push({
+        id: initialDocument.branch_id,
+        name: initialDocument.branch_name || "현재 지점",
+        is_active: false
+      });
+    }
+
+    return next;
+  }, [branches, initialDocument, isEditMode]);
+
+  const designerOptions = useMemo(() => {
+    const next = [...designers];
+
+    if (
+      isEditMode &&
+      initialDocument?.designer_id &&
+      !next.some((designer) => Number(designer.id) === Number(initialDocument.designer_id))
+    ) {
+      next.push({
+        id: initialDocument.designer_id,
+        name: initialDocument.designer_name || "현재 담당 디자이너",
+        branch_id: initialDocument.branch_id,
+        is_active: false
+      });
+    }
+
+    return next;
+  }, [designers, initialDocument, isEditMode]);
+
+  const notificationTemplateOptions = useMemo(() => {
+    const next = [...notificationTemplates];
+
+    if (
+      isEditMode &&
+      initialDocument?.notification_template_id &&
+      !next.some(
+        (template) =>
+          Number(template.id) === Number(initialDocument.notification_template_id)
+      )
+    ) {
+      next.push({
+        id: initialDocument.notification_template_id,
+        template_name: initialDocument.notification_template_name || "현재 알림톡 템플릿",
+        template_code: "",
+        is_active: false
+      });
+    }
+
+    return next;
+  }, [initialDocument, isEditMode, notificationTemplates]);
+
+  const initialBranchId = initialDocument?.branch_id
+    ? String(initialDocument.branch_id)
+    : branchId
+      ? String(branchId)
+      : "";
+  const initialDesignerId = initialDocument?.designer_id
+    ? String(initialDocument.designer_id)
+    : "";
+  const initialTemplateId = initialDocument?.template_id
+    ? String(initialDocument.template_id)
+    : "";
+  const initialNotificationTemplateId = initialDocument?.notification_template_id
+    ? String(initialDocument.notification_template_id)
+    : "";
+  const initialBranchName =
+    initialDocument?.branch_name ||
+    branchOptions.find((branch) => String(branch.id) === initialBranchId)?.name ||
+    branchName ||
+    "";
+
+  const [selectedBranchId, setSelectedBranchId] = useState(initialBranchId);
+  const [selectedDesignerId, setSelectedDesignerId] = useState(initialDesignerId);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(initialTemplateId);
+  const [selectedNotificationTemplateId, setSelectedNotificationTemplateId] = useState(
+    initialNotificationTemplateId
+  );
+  const [editorContent, setEditorContent] = useState(
+    isEditMode ? normalizeTemplateContent(initialDocument?.rendered_content || "") : ""
+  );
+  const [documentTitle, setDocumentTitle] = useState(
+    String(initialDocument?.document_title || "")
+  );
+  const [documentDate, setDocumentDate] = useState(
+    String(initialDocument?.document_date || getTodayKst())
+  );
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeLoadingStepIndex, setActiveLoadingStepIndex] = useState(0);
+
+  const designersByBranch = useMemo(() => {
+    const next = new Map();
+
+    designerOptions.forEach((designer) => {
+      const key = String(designer.branch_id || "");
+      const items = next.get(key);
+
+      if (items) {
+        items.push(designer);
+        return;
+      }
+
+      next.set(key, [designer]);
+    });
+
+    return next;
+  }, [designerOptions]);
+
+  const documentTemplateMap = useMemo(() => {
+    return new Map(documentTemplates.map((template) => [String(template.id), template]));
+  }, [documentTemplates]);
+
+  const currentTemplate = documentTemplateMap.get(String(selectedTemplateId));
+  const currentTemplateName =
+    currentTemplate?.name ||
+    initialDocument?.template_name ||
+    (selectedTemplateId ? `템플릿 #${selectedTemplateId}` : "연결된 템플릿 없음");
+
+  const loadingState = useMemo(() => {
+    if (isEditMode) {
+      return {
+        title: "문서를 수정하고 있습니다",
+        copy: "서명 전 문서는 저장 후 바로 반영됩니다.",
+        steps: [
+          {
+            label: "수정 내용을 확인하고 있습니다",
+            description: "고객 정보와 본문 변경사항을 점검하고 있습니다."
+          },
+          {
+            label: "수정된 문서를 저장하고 있습니다",
+            description: "서명 링크는 그대로 유지한 채 최신 내용으로 덮어쓰고 있습니다."
+          },
+          {
+            label: "저장 결과를 반영하고 있습니다",
+            description: "저장이 끝나면 문서 목록으로 돌아갑니다."
+          }
+        ],
+        stepIntervalMs: 950
+      };
+    }
+
+    return {
+      title: "문서 발행과 알림톡 준비를 진행하고 있습니다",
+      copy: "알림톡 검수 상태 확인이 포함되면 평소보다 조금 더 걸릴 수 있습니다.",
+      steps: [
+        {
+          label: "입력 내용을 확인하고 있습니다",
+          description: "지점, 담당자, 문서 템플릿 정보를 정리하고 있습니다."
+        },
+        {
+          label: "고객 안내문을 생성하고 있습니다",
+          description: "문서 본문에 고객 정보와 발급 링크를 반영하고 있습니다."
+        },
+        {
+          label: "알림톡 템플릿 상태를 확인하고 있습니다",
+          description: "검수 상태와 최신 템플릿 정보를 Bizgo 기준으로 확인하고 있습니다."
+        },
+        {
+          label: "알림톡 발송을 요청하고 있습니다",
+          description: "발송 결과를 저장한 뒤 목록으로 돌아갑니다."
+        }
+      ],
+      stepIntervalMs: 1300
+    };
+  }, [isEditMode]);
+
+  const loadingStepsJson = useMemo(() => {
+    return JSON.stringify(loadingState.steps);
+  }, [loadingState.steps]);
 
   const filteredDesigners = useMemo(() => {
     if (!selectedBranchId) {
       return [];
     }
 
-    return designers.filter(
-      (designer) => String(designer.branch_id) === String(selectedBranchId)
-    );
-  }, [designers, selectedBranchId]);
+    return designersByBranch.get(String(selectedBranchId)) || [];
+  }, [designersByBranch, selectedBranchId]);
 
   useEffect(() => {
     if (
@@ -55,23 +232,40 @@ export default function AdminDocumentIssueForm({
   }, [filteredDesigners, selectedDesignerId]);
 
   useEffect(() => {
-    if (sendAlimtalk !== "1" && errors.notification_template_id) {
-      setErrors((current) => {
-        const next = { ...current };
-        delete next.notification_template_id;
-        return next;
-      });
-    }
-  }, [errors.notification_template_id, sendAlimtalk]);
+    const template = documentTemplateMap.get(String(selectedTemplateId));
 
-  useEffect(() => {
-    const template = documentTemplates.find(
-      (item) => String(item.id) === String(selectedTemplateId)
-    );
+    if (skipInitialTemplateSeedRef.current) {
+      skipInitialTemplateSeedRef.current = false;
+      return;
+    }
 
     setEditorContent(normalizeTemplateContent(template?.content || ""));
     setDocumentTitle(String(template?.document_title || template?.name || ""));
-  }, [documentTemplates, selectedTemplateId]);
+  }, [documentTemplateMap, selectedTemplateId]);
+
+  useEffect(() => {
+    if (!isSubmitting || loadingState.steps.length <= 1) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setActiveLoadingStepIndex((current) =>
+        Math.min(current + 1, loadingState.steps.length - 1)
+      );
+    }, loadingState.stepIntervalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isSubmitting, loadingState.stepIntervalMs, loadingState.steps.length]);
+
+  useEffect(() => {
+    return () => {
+      if (submitTimerRef.current) {
+        window.clearTimeout(submitTimerRef.current);
+      }
+    };
+  }, []);
 
   function clearError(fieldName) {
     setErrors((current) => {
@@ -89,7 +283,7 @@ export default function AdminDocumentIssueForm({
     const nextErrors = {};
     const customerName = String(formData.get("customer_name") || "").trim();
     const recipientPhone = String(formData.get("recipient_phone") || "").replace(/\D/g, "");
-    const documentTitle = String(formData.get("document_title") || "").trim();
+    const documentTitleValue = String(formData.get("document_title") || "").trim();
 
     if (!branchLocked && !selectedBranchId) {
       nextErrors.branch_id = "지점을 선택해야 합니다.";
@@ -114,42 +308,117 @@ export default function AdminDocumentIssueForm({
     }
 
     if (!selectedTemplateId) {
-      nextErrors.template_id = "문서 템플릿을 선택해야 합니다.";
+      nextErrors.template_id = "문서 템플릿을 확인해야 합니다.";
     }
 
-    if (sendAlimtalk === "1" && !selectedNotificationTemplateId) {
+    if (!isEditMode && !selectedNotificationTemplateId) {
       nextErrors.notification_template_id = "알림톡 템플릿을 선택해야 합니다.";
     }
 
-    if (!documentTitle) {
+    if (!documentTitleValue) {
       nextErrors.document_title = "문서 제목을 입력해야 합니다.";
     }
 
     return nextErrors;
   }
 
+  const currentLoadingStep =
+    loadingState.steps[
+      Math.min(activeLoadingStepIndex, Math.max(loadingState.steps.length - 1, 0))
+    ] || null;
+  const loadingProgress =
+    loadingState.steps.length > 0
+      ? (Math.min(activeLoadingStepIndex + 1, loadingState.steps.length) /
+          loadingState.steps.length) *
+        100
+      : 0;
+
   return (
     <form
+      className="issue-form"
       action="/api/admin/documents"
       method="post"
+      data-loading-title={loadingState.title}
+      data-loading-copy={loadingState.copy}
+      data-loading-steps={loadingStepsJson}
+      data-loading-step-interval={String(loadingState.stepIntervalMs)}
+      data-loading-toast-delay="320"
+      aria-busy={isSubmitting ? "true" : "false"}
       onSubmit={(event) => {
-        const nextErrors = validateForm(new FormData(event.currentTarget));
+        const form = event.currentTarget;
+        const nextErrors = validateForm(new FormData(form));
 
         if (Object.keys(nextErrors).length > 0) {
           event.preventDefault();
           setErrors(nextErrors);
+          return;
         }
+
+        if (isSubmitting) {
+          event.preventDefault();
+          return;
+        }
+
+        event.preventDefault();
+        setIsSubmitting(true);
+        setActiveLoadingStepIndex(0);
+        startGlobalLoading({
+          ...loadingState,
+          toastDelayMs: 320
+        });
+
+        submitTimerRef.current = window.setTimeout(() => {
+          form.submit();
+        }, 48);
       }}
     >
-      <input type="hidden" name="intent" value="create" />
+      <input type="hidden" name="intent" value={isEditMode ? "update" : "create"} />
+      {isEditMode ? <input type="hidden" name="token" value={initialDocument?.token || ""} /> : null}
+
+      {isSubmitting ? (
+        <div className="issue-form-loading-overlay" role="status" aria-live="polite">
+          <div className="issue-form-loading-card">
+            <div className="issue-form-loading-meta">
+              {Math.min(activeLoadingStepIndex + 1, loadingState.steps.length)}/
+              {loadingState.steps.length} 단계
+            </div>
+            <div className="issue-form-loading-title">
+              {currentLoadingStep?.label || loadingState.title}
+            </div>
+            <div className="issue-form-loading-copy">
+              {currentLoadingStep?.description || loadingState.copy}
+            </div>
+            <div className="issue-form-loading-progress" aria-hidden="true">
+              <span style={{ transform: `scaleX(${loadingProgress / 100})` }} />
+            </div>
+            <div className="issue-form-loading-step-list">
+              {loadingState.steps.map((step, index) => (
+                <div
+                  key={step.label}
+                  className={`issue-form-loading-step ${
+                    index === activeLoadingStepIndex
+                      ? "active"
+                      : index < activeLoadingStepIndex
+                        ? "done"
+                        : ""
+                  }`}
+                >
+                  {step.label}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="issue-form-layout">
         <div className="issue-form-row issue-form-row-2">
-        {branchLocked ? (
-          <>
-            <input type="hidden" name="branch_id" value={selectedBranchId} />
-            <label className="field">
-              <span className="field-label">지점</span>
-                <input value={branchName || ""} disabled readOnly />
+          {branchLocked ? (
+            <>
+              <input type="hidden" name="branch_id" value={selectedBranchId} />
+              <label className="field">
+                <span className="field-label">지점</span>
+                <input value={initialBranchName} disabled readOnly />
               </label>
             </>
           ) : (
@@ -166,9 +435,9 @@ export default function AdminDocumentIssueForm({
                 required
               >
                 <option value="">선택</option>
-                {branches.map((branch) => (
+                {branchOptions.map((branch) => (
                   <option key={branch.id} value={branch.id}>
-                    {branch.name}
+                    {labelWithInactiveSuffix(branch, branch.name)}
                   </option>
                 ))}
               </SelectField>
@@ -196,7 +465,7 @@ export default function AdminDocumentIssueForm({
               </option>
               {filteredDesigners.map((designer) => (
                 <option key={designer.id} value={designer.id}>
-                  {designer.name}
+                  {labelWithInactiveSuffix(designer, designer.name)}
                 </option>
               ))}
             </SelectField>
@@ -211,6 +480,7 @@ export default function AdminDocumentIssueForm({
             <span className="field-label">고객 이름</span>
             <input
               name="customer_name"
+              defaultValue={initialDocument?.customer_name || ""}
               className={errors.customer_name ? "input-error" : ""}
               onChange={() => clearError("customer_name")}
               required
@@ -226,6 +496,7 @@ export default function AdminDocumentIssueForm({
               name="recipient_phone"
               inputMode="tel"
               placeholder="01012345678"
+              defaultValue={initialDocument?.recipient_phone || ""}
               className={errors.recipient_phone ? "input-error" : ""}
               onChange={() => clearError("recipient_phone")}
               required
@@ -254,68 +525,104 @@ export default function AdminDocumentIssueForm({
           </label>
         </div>
 
-        <div className="issue-form-row issue-form-row-3">
-          <label className="field">
-            <span className="field-label">문서 템플릿</span>
-            <SelectField
-              name="template_id"
-              value={selectedTemplateId}
-              onChange={(event) => {
-                setSelectedTemplateId(String(event.target.value || ""));
-                clearError("template_id");
-              }}
-              invalid={Boolean(errors.template_id)}
-              required
-            >
-              <option value="">선택</option>
-              {documentTemplates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </SelectField>
-            {errors.template_id ? (
-              <span className="field-error-text">{errors.template_id}</span>
-            ) : null}
-          </label>
+        {isEditMode ? (
+          <div className="issue-form-row issue-form-row-2">
+            <label className="field">
+              <span className="field-label">문서 템플릿</span>
+              <input value={currentTemplateName} disabled readOnly />
+              <input type="hidden" name="template_id" value={selectedTemplateId} />
+              <span className="field-help">
+                이미 발급된 문서는 현재 템플릿 연결을 유지하고 본문을 직접 수정합니다.
+              </span>
+            </label>
 
-          <label className="field">
-            <span className="field-label">알림톡 템플릿</span>
-            <SelectField
-              name="notification_template_id"
-              value={selectedNotificationTemplateId}
-              onChange={(event) => {
-                setSelectedNotificationTemplateId(String(event.target.value || ""));
-                clearError("notification_template_id");
-              }}
-              invalid={Boolean(errors.notification_template_id)}
-            >
-              <option value="">선택</option>
-              {notificationTemplates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.template_name} ({template.template_code})
-                </option>
-              ))}
-            </SelectField>
-            {errors.notification_template_id ? (
-              <span className="field-error-text">{errors.notification_template_id}</span>
-            ) : null}
-          </label>
+            <label className="field">
+              <span className="field-label">알림톡 템플릿</span>
+              <SelectField
+                name="notification_template_id"
+                value={selectedNotificationTemplateId}
+                onChange={(event) => {
+                  setSelectedNotificationTemplateId(String(event.target.value || ""));
+                  clearError("notification_template_id");
+                }}
+                invalid={Boolean(errors.notification_template_id)}
+              >
+                <option value="">선택 안 함</option>
+                {notificationTemplateOptions.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {labelWithInactiveSuffix(
+                      template,
+                      `${template.template_name} ${
+                        template.template_code ? `(${template.template_code})` : ""
+                      }`.trim()
+                    )}
+                  </option>
+                ))}
+              </SelectField>
+              {errors.notification_template_id ? (
+                <span className="field-error-text">{errors.notification_template_id}</span>
+              ) : null}
+              <span className="field-help">
+                저장 후 필요하면 목록의 재발송 버튼으로 알림톡을 다시 보낼 수 있습니다.
+              </span>
+            </label>
+          </div>
+        ) : (
+          <div className="issue-form-row issue-form-row-2">
+            <label className="field">
+              <span className="field-label">문서 템플릿</span>
+              <SelectField
+                name="template_id"
+                value={selectedTemplateId}
+                onChange={(event) => {
+                  setSelectedTemplateId(String(event.target.value || ""));
+                  clearError("template_id");
+                }}
+                invalid={Boolean(errors.template_id)}
+                required
+              >
+                <option value="">선택</option>
+                {documentTemplates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </SelectField>
+              {errors.template_id ? (
+                <span className="field-error-text">{errors.template_id}</span>
+              ) : null}
+            </label>
 
-          <label className="field">
-            <span className="field-label">알림톡 즉시 발송 여부</span>
-            <SelectField
-              name="send_alimtalk"
-              value={sendAlimtalk}
-              onChange={(event) => {
-                setSendAlimtalk(String(event.target.value || "1"));
-              }}
-            >
-              <option value="1">예</option>
-              <option value="0">아니오</option>
-            </SelectField>
-          </label>
-        </div>
+            <label className="field">
+              <span className="field-label">알림톡 템플릿</span>
+              <SelectField
+                name="notification_template_id"
+                value={selectedNotificationTemplateId}
+                onChange={(event) => {
+                  setSelectedNotificationTemplateId(String(event.target.value || ""));
+                  clearError("notification_template_id");
+                }}
+                invalid={Boolean(errors.notification_template_id)}
+              >
+                <option value="">선택</option>
+                {notificationTemplateOptions.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {labelWithInactiveSuffix(
+                      template,
+                      `${template.template_name} (${template.template_code})`
+                    )}
+                  </option>
+                ))}
+              </SelectField>
+              {errors.notification_template_id ? (
+                <span className="field-error-text">{errors.notification_template_id}</span>
+              ) : null}
+              <span className="field-help">
+                문서 발행 시 선택한 알림톡 템플릿으로 바로 발송합니다.
+              </span>
+            </label>
+          </div>
+        )}
 
         <div className="issue-form-row issue-form-row-1">
           <label className="field">
@@ -343,15 +650,22 @@ export default function AdminDocumentIssueForm({
             <LazyRichTextEditor
               name="content"
               defaultValue={editorContent}
-              placeholder="문서 템플릿을 선택하면 본문이 여기에 불러와집니다."
+              placeholder={
+                isEditMode
+                  ? "현재 발급된 문서 본문을 수정할 수 있습니다."
+                  : "문서 템플릿을 선택하면 본문이 여기에 불러와집니다."
+              }
             />
           </div>
         </div>
       </div>
+
       <div className="form-actions admin-form-actions">
-        <button type="submit">문서 생성</button>
+        <button type="submit">{isEditMode ? "문서 저장" : "문서 생성"}</button>
         <span className="pill-note">
-          알림톡 즉시 발송을 켜면 선택한 알림톡 템플릿으로 Bizgo 발송을 시도합니다.
+          {isEditMode
+            ? "서명 전 문서는 저장 후 바로 반영됩니다. 저장 후 필요하면 재발송 버튼으로 알림톡을 다시 보낼 수 있습니다."
+            : "문서 발행 시 선택한 알림톡 템플릿으로 Bizgo 발송을 바로 시도합니다."}
         </span>
       </div>
     </form>

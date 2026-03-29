@@ -6,10 +6,12 @@ import {
   requireAdminSession
 } from "@/lib/auth";
 import {
+  countDocuments,
   listAdminUsers,
   listBranches,
   listDesigners,
-  listDocuments
+  listDocumentsForDashboard,
+  listDocumentsPage
 } from "@/lib/db";
 
 const PERIOD_OPTIONS = [
@@ -207,19 +209,11 @@ function buildTrendBuckets(period, referenceDate = new Date()) {
   });
 }
 
-function buildSignedTrend({
-  documents,
-  period,
-  branchId
-}) {
+function buildSignedTrend({ documents, period }) {
   const buckets = buildTrendBuckets(period);
 
   documents.forEach((document) => {
     if (document.status !== "signed") {
-      return;
-    }
-
-    if (branchId && Number(document.branch_id) !== Number(branchId)) {
       return;
     }
 
@@ -288,36 +282,54 @@ export default async function AdminDashboardPage({ searchParams }) {
     session
   });
   const periodStart = periodStartDate(period);
-  const [documents, admins, branches, designers] = await Promise.all([
-    listDocuments({ branchId }),
+  const periodStartIso = periodStart.toISOString();
+  const activityQueryBranchId = integratedMaster
+    ? activityBranchId || undefined
+    : branchId;
+  const trendQueryBranchId = integratedMaster
+    ? trendBranchId || undefined
+    : branchId;
+  const [
+    recentDocumentsPage,
+    signedCount,
+    pendingCount,
+    admins,
+    branches,
+    designers,
+    activityDocuments,
+    trendDocuments
+  ] = await Promise.all([
+    listDocumentsPage({ branchId, page: 1, pageSize: 4 }),
+    countDocuments({ branchId, status: "signed" }),
+    countDocuments({ branchId, status: "pending" }),
     listAdminUsers({ branchId }),
     listBranches({ branchId }),
-    listDesigners({ branchId })
+    listDesigners({ branchId }),
+    listDocumentsForDashboard({
+      branchId: activityQueryBranchId,
+      createdSince: periodStartIso
+    }),
+    listDocumentsForDashboard({
+      branchId: trendQueryBranchId,
+      status: "signed",
+      signedSince: periodStartIso
+    })
   ]);
-
-  const signedCount = documents.filter((item) => item.status === "signed").length;
-  const pendingCount = documents.filter((item) => item.status === "pending").length;
-  const signRate = documents.length === 0 ? 0 : Math.round((signedCount / documents.length) * 100);
-  const recentDocuments = documents.slice(0, 4);
-  const periodDocuments = documents.filter((document) => {
-    const createdAt = new Date(document.created_at);
-    return !Number.isNaN(createdAt.getTime()) && createdAt >= periodStart;
-  });
+  const totalDocuments = recentDocumentsPage.totalCount;
+  const signRate =
+    totalDocuments === 0 ? 0 : Math.round((signedCount / totalDocuments) * 100);
+  const recentDocuments = recentDocumentsPage.items;
   const activityBranches = activityBranchId
     ? branches.filter((branch) => Number(branch.id) === Number(activityBranchId))
     : branches;
-  const activityDocuments = activityBranchId
-    ? periodDocuments.filter((document) => Number(document.branch_id) === Number(activityBranchId))
-    : periodDocuments;
   const branchChartItems = buildBranchChartItems({
     branches: activityBranches,
     documents: activityDocuments,
     fallbackBranchName: session.branch_name || ""
   });
   const trendItems = buildSignedTrend({
-    documents,
-    period,
-    branchId: trendBranchId
+    documents: trendDocuments,
+    period
   });
   const trendChart = buildLineChartModel(trendItems);
   const trendBranchName = trendBranchId
@@ -349,7 +361,7 @@ export default async function AdminDashboardPage({ searchParams }) {
         <div className="admin-stats-grid compact">
           <div className="stat-card">
             <span className="stat-label">발급 문서</span>
-            <div className="stat-value">{documents.length}</div>
+            <div className="stat-value">{totalDocuments}</div>
             <div className="stat-meta">누적 전자서명 요청</div>
           </div>
           <div className="stat-card">
