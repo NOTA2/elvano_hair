@@ -13,6 +13,7 @@ import {
   countDocuments,
   listBranches,
   listDesigners,
+  listDocumentsByIds,
   listDocumentsPage,
   listNotificationTemplates,
   listTemplates
@@ -35,6 +36,20 @@ const MASTER_SORT_OPTIONS = [
   { value: "status", label: "상태" }
 ];
 const BRANCH_SORT_OPTIONS = MASTER_SORT_OPTIONS.filter((option) => option.value !== "branch_name");
+const RESEND_LOADING_STEPS = JSON.stringify([
+  {
+    label: "재발송 대상을 확인하고 있습니다",
+    description: "문서와 연결된 알림톡 템플릿 정보를 불러오고 있습니다."
+  },
+  {
+    label: "알림톡 템플릿 상태를 확인하고 있습니다",
+    description: "최신 검수 상태와 발송 가능 여부를 다시 확인하고 있습니다."
+  },
+  {
+    label: "알림톡 재발송을 요청하고 있습니다",
+    description: "발송 결과를 저장한 뒤 문서 목록으로 돌아갑니다."
+  }
+]);
 
 function statusClass(status) {
   if (status === "signed") return "signed";
@@ -124,6 +139,13 @@ export default async function AdminDocumentsPage({ searchParams }) {
   const branches = integratedMaster
     ? allBranches
     : allBranches.filter((branch) => Number(branch.id) === Number(session.branch_id));
+  const editableDocumentIds = documentsPage.items
+    .filter((document) => document.status !== "signed")
+    .map((document) => document.id);
+  const editableDocuments = await listDocumentsByIds(editableDocumentIds);
+  const editableDocumentsById = new Map(
+    editableDocuments.map((document) => [Number(document.id), document])
+  );
   const baseUrl = getBaseUrl();
   const pageMessage = String(resolvedSearchParams?.message || "").trim();
   const rawMessageType = String(resolvedSearchParams?.messageType || "").trim();
@@ -171,7 +193,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
                 <>
                   문서 템플릿과 알림톡 템플릿을 각각 선택해 고객 안내문을 발급합니다.
                   <br />
-                  필요하면 Bizgo 알림톡으로 바로 전송할 수 있습니다.
+                  발급과 동시에 선택한 Bizgo 알림톡으로 바로 전송합니다.
                 </>
               }
               triggerLabel="문서 발급"
@@ -210,6 +232,12 @@ export default async function AdminDocumentsPage({ searchParams }) {
                 <tbody>
                   {documentsPage.items.map((document) => {
                     const bizgoIndicatorState = bizgoIndicator(document.bizgo_status);
+                    const editableDocument = editableDocumentsById.get(Number(document.id));
+                    const isEditDisabled = document.status === "signed" || !editableDocument;
+                    const editDisabledReason =
+                      document.status === "signed"
+                        ? "서명 완료된 문서는 수정할 수 없습니다."
+                        : "문서 정보를 불러오지 못해 수정할 수 없습니다.";
 
                     return (
                       <tr key={document.id}>
@@ -257,8 +285,60 @@ export default async function AdminDocumentsPage({ searchParams }) {
                           >
                             문서 보기
                           </a>
-                          {document.bizgo_status !== "sent" && document.notification_template_id ? (
-                            <form action="/api/admin/documents" method="post">
+                          {!isEditDisabled ? (
+                            <ModalDialog
+                              title="발급 문서 수정"
+                              description={
+                                <>
+                                  고객이 서명하기 전까지는 현재 발급된 문서 내용을 수정할 수
+                                  있습니다.
+                                  <br />
+                                  저장 후 필요하면 알림톡을 다시 재발송해 주세요.
+                                </>
+                              }
+                              triggerLabel="문서 수정"
+                              triggerClassName="secondary table-action-button"
+                              size="wide"
+                            >
+                              <AdminDocumentIssueForm
+                                mode="edit"
+                                initialDocument={editableDocument}
+                                branchLocked={!integratedMaster}
+                                branchId={session.branch_id}
+                                branchName={editableDocument.branch_name || session.branch_name || ""}
+                                branches={branches}
+                                designers={designers}
+                                documentTemplates={documentTemplates}
+                                notificationTemplates={notificationTemplates}
+                              />
+                            </ModalDialog>
+                          ) : (
+                            <span
+                              className="table-action-tooltip"
+                              data-tooltip={editDisabledReason}
+                              title={editDisabledReason}
+                              tabIndex={0}
+                            >
+                              <button
+                                type="button"
+                                className="secondary table-action-button"
+                                disabled
+                                aria-label={editDisabledReason}
+                              >
+                                문서 수정
+                              </button>
+                            </span>
+                          )}
+                          {document.notification_template_id ? (
+                            <form
+                              action="/api/admin/documents"
+                              method="post"
+                              data-loading-title="알림톡을 재발송하고 있습니다"
+                              data-loading-copy="검수 상태 확인이 포함되면 평소보다 조금 더 걸릴 수 있습니다."
+                              data-loading-steps={RESEND_LOADING_STEPS}
+                              data-loading-step-interval="1200"
+                              data-loading-toast-delay="320"
+                            >
                               <input type="hidden" name="intent" value="resend" />
                               <input type="hidden" name="token" value={document.token} />
                               <button type="submit" className="secondary table-action-button">

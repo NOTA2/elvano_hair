@@ -105,10 +105,16 @@ export async function POST(request) {
     }
 
     if (duplicate && duplicate.status === "deleted") {
-      await updateNotificationTemplate(duplicate.id, {
-        ...buildLocalInput({ templateCode }),
-        ...mapBizgoTemplateToLocal(remoteTemplate)
-      });
+      await updateNotificationTemplate(
+        duplicate.id,
+        {
+          ...buildLocalInput({ templateCode }),
+          ...mapBizgoTemplateToLocal(remoteTemplate)
+        },
+        {
+          currentTemplate: duplicate
+        }
+      );
     } else {
       await createNotificationTemplate({
         ...buildLocalInput({ templateCode }),
@@ -145,10 +151,16 @@ export async function POST(request) {
       return redirectBack(headerStore, { error, message });
     }
 
-    await updateNotificationTemplate(templateId, {
-      ...buildLocalInput({ templateCode, currentTemplate }),
-      ...mapBizgoTemplateToLocal(remoteTemplate)
-    });
+    await updateNotificationTemplate(
+      templateId,
+      {
+        ...buildLocalInput({ templateCode, currentTemplate }),
+        ...mapBizgoTemplateToLocal(remoteTemplate)
+      },
+      {
+        currentTemplate
+      }
+    );
 
     return redirectBack(headerStore, { error: "", message: "" });
   }
@@ -160,10 +172,16 @@ export async function POST(request) {
       return redirectBack(headerStore, { error, message });
     }
 
-    await updateNotificationTemplate(templateId, {
-      status: currentTemplate.status,
-      ...mapBizgoTemplateToLocal(remoteTemplate)
-    });
+    await updateNotificationTemplate(
+      templateId,
+      {
+        status: currentTemplate.status,
+        ...mapBizgoTemplateToLocal(remoteTemplate)
+      },
+      {
+        currentTemplate
+      }
+    );
 
     return redirectBack(headerStore, { error: "", message: "" });
   }
