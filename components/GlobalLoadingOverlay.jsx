@@ -15,14 +15,16 @@ const DEFAULT_LOADING_STATE = {
   copy: "잠시만 기다려 주세요.",
   steps: [],
   stepIntervalMs: DEFAULT_STEP_INTERVAL_MS,
-  toastDelayMs: LONG_TASK_DELAY_MS
+  toastDelayMs: LONG_TASK_DELAY_MS,
+  showCard: true
 };
 const ROUTE_LOADING_STATE = {
   title: "페이지를 불러오고 있습니다",
   copy: "새 화면을 준비하고 있습니다.",
   steps: [],
   stepIntervalMs: DEFAULT_STEP_INTERVAL_MS,
-  toastDelayMs: 900
+  toastDelayMs: 900,
+  showCard: true
 };
 
 function emitLoadingEvent(name, detail) {
@@ -62,6 +64,7 @@ function normalizeLoadingDetail(detail) {
 
   const stepIntervalMs = Number(detail.stepIntervalMs);
   const toastDelayMs = Number(detail.toastDelayMs);
+  const showCard = detail.showCard !== false;
 
   return {
     title: String(detail.title || "").trim() || DEFAULT_LOADING_STATE.title,
@@ -74,7 +77,8 @@ function normalizeLoadingDetail(detail) {
     toastDelayMs:
       Number.isFinite(toastDelayMs) && toastDelayMs >= 0
         ? toastDelayMs
-        : LONG_TASK_DELAY_MS
+        : LONG_TASK_DELAY_MS,
+    showCard
   };
 }
 
@@ -83,10 +87,24 @@ function readLoadingDetailFromForm(form) {
     return null;
   }
 
-  const { loadingTitle, loadingCopy, loadingSteps, loadingStepInterval, loadingToastDelay } =
+  const {
+    loadingTitle,
+    loadingCopy,
+    loadingSteps,
+    loadingStepInterval,
+    loadingToastDelay,
+    loadingCard
+  } =
     form.dataset;
 
-  if (!loadingTitle && !loadingCopy && !loadingSteps && !loadingStepInterval && !loadingToastDelay) {
+  if (
+    !loadingTitle &&
+    !loadingCopy &&
+    !loadingSteps &&
+    !loadingStepInterval &&
+    !loadingToastDelay &&
+    !loadingCard
+  ) {
     return null;
   }
 
@@ -106,7 +124,8 @@ function readLoadingDetailFromForm(form) {
     copy: loadingCopy,
     steps,
     stepIntervalMs: loadingStepInterval,
-    toastDelayMs: loadingToastDelay
+    toastDelayMs: loadingToastDelay,
+    showCard: loadingCard !== "hidden"
   });
 }
 
@@ -170,6 +189,7 @@ function shouldStartRouteLoading(anchor) {
 }
 
 export default function GlobalLoadingOverlay() {
+  const cardDialogRef = useRef(null);
   const pendingCountRef = useRef(0);
   const progressTimerRef = useRef(null);
   const longTaskTimerRef = useRef(null);
@@ -416,6 +436,28 @@ export default function GlobalLoadingOverlay() {
     loadingState.steps.length > 0
       ? `${Math.min(activeStepIndex + 1, loadingState.steps.length)}/${loadingState.steps.length} 단계`
       : "";
+  const shouldShowCard = isVisible && loadingState.showCard;
+  const shouldShowToast = !loadingState.showCard && isVisible && showLongTaskNotice;
+
+  useEffect(() => {
+    const dialog = cardDialogRef.current;
+
+    if (!dialog) {
+      return;
+    }
+
+    if (shouldShowCard) {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+
+      return;
+    }
+
+    if (dialog.open) {
+      dialog.close();
+    }
+  }, [shouldShowCard]);
 
   return (
     <>
@@ -429,13 +471,56 @@ export default function GlobalLoadingOverlay() {
         />
       </div>
 
+      <dialog
+        ref={cardDialogRef}
+        className={`global-loading-dialog ${shouldShowCard ? "visible" : ""}`}
+        onCancel={(event) => {
+          event.preventDefault();
+        }}
+      >
+        <div
+          className="global-loading-card"
+          role="status"
+          aria-live="polite"
+          aria-busy={shouldShowCard ? "true" : "false"}
+        >
+          <div className="global-loading-card-head">
+            <div className="global-loading-spinner" aria-hidden="true" />
+            <div>
+              {loadingMeta ? <div className="global-loading-meta">{loadingMeta}</div> : null}
+              <div className="global-loading-title">{loadingTitle}</div>
+              <div className="global-loading-copy">{loadingCopy}</div>
+            </div>
+          </div>
+          <div className="global-loading-card-progress" aria-hidden="true">
+            <span style={{ transform: `scaleX(${progress})` }} />
+          </div>
+          {loadingState.steps.length > 0 ? (
+            <div className="global-loading-step-list">
+              {loadingState.steps.map((step, index) => (
+                <div
+                  key={step.label}
+                  className={`global-loading-step ${
+                    index === activeStepIndex
+                      ? "active"
+                      : index < activeStepIndex
+                        ? "done"
+                        : ""
+                  }`}
+                >
+                  {step.label}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </dialog>
+
       <div
-        className={`global-loading-toast ${
-          isVisible && showLongTaskNotice ? "visible" : ""
-        }`}
+        className={`global-loading-toast ${shouldShowToast ? "visible" : ""}`}
         role="status"
         aria-live="polite"
-        aria-busy={isVisible && showLongTaskNotice ? "true" : "false"}
+        aria-busy={shouldShowToast ? "true" : "false"}
       >
         <div className="global-loading-spinner" aria-hidden="true" />
         <div>
