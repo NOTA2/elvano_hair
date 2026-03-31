@@ -338,6 +338,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
                               data-loading-steps={RESEND_LOADING_STEPS}
                               data-loading-step-interval="1200"
                               data-loading-toast-delay="320"
+                              data-loading-card="hidden"
                             >
                               <input type="hidden" name="intent" value="resend" />
                               <input type="hidden" name="token" value={document.token} />

@@ -343,6 +343,7 @@ export default function AdminDocumentIssueForm({
       data-loading-steps={loadingStepsJson}
       data-loading-step-interval={String(loadingState.stepIntervalMs)}
       data-loading-toast-delay="320"
+      data-loading-card="hidden"
       aria-busy={isSubmitting ? "true" : "false"}
       onSubmit={(event) => {
         const form = event.currentTarget;
@@ -364,7 +365,8 @@ export default function AdminDocumentIssueForm({
         setActiveLoadingStepIndex(0);
         startGlobalLoading({
           ...loadingState,
-          toastDelayMs: 320
+          toastDelayMs: 320,
+          showCard: false
         });
 
         submitTimerRef.current = window.setTimeout(() => {
