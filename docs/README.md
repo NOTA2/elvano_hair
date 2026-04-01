@@ -1,4 +1,4 @@
-# Documentation Index
+# 문서 인덱스
 
 이 디렉터리는 이 저장소만 보고도 프로젝트를 이해하고 이어서 작업할 수 있도록 만든 인수인계 문서 모음이다.
 
@@ -7,8 +7,9 @@
 1. [`../README.md`](../README.md)
 2. [`APP_STRUCTURE.md`](APP_STRUCTURE.md)
 3. [`DOMAIN_RULES.md`](DOMAIN_RULES.md)
-4. [`DB_SCHEMA.md`](DB_SCHEMA.md)
-5. [`OPERATIONS.md`](OPERATIONS.md)
+4. [`DEV_MULTI_AGENT_WORKFLOW.md`](DEV_MULTI_AGENT_WORKFLOW.md)
+5. [`DB_SCHEMA.md`](DB_SCHEMA.md)
+6. [`OPERATIONS.md`](OPERATIONS.md)
 
 ## 문서 설명
 
@@ -25,6 +26,13 @@
 - 권한 체계와 승인 프로세스
 - 지점, 디자이너, 템플릿, 문서의 도메인 규칙
 - Bizgo 발송과 공개 서명 링크 운영 규칙
+
+### `DEV_MULTI_AGENT_WORKFLOW.md`
+
+- 이 저장소를 개발할 때 사용하는 멀티 에이전트 워크플로
+- 기획, 개발, 코드 성능 검증, 디자인 검증 순서
+- `codex exec` 기반 실행 방법
+- 성능 리포트 스크립트와 검증 기준
 
 ### `DB_SCHEMA.md`
 

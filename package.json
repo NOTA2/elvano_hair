@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "validate:build": "next build",
+    "validate:performance": "npm run validate:build && node scripts/route-performance-report.mjs",
+    "agents:run": "bash scripts/run-dev-workflow.sh",
     "start": "next start",
     "lint": "next lint"
   },
