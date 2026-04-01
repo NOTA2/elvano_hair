@@ -96,7 +96,7 @@ create table public.documents (
   status text not null default 'pending' check (status in ('pending', 'signed', 'failed')),
   viewed_at timestamptz,
   signed_at timestamptz,
-  signature_data_url text,
+  signature_storage_path text,
   bizgo_status text,
   bizgo_response jsonb,
   created_at timestamptz not null default timezone('utc', now()),
@@ -172,6 +172,20 @@ create index login_attempts_last_attempt_at_idx on public.login_attempts(last_at
 create index login_attempt_logs_attempted_at_idx on public.login_attempt_logs(attempted_at desc);
 create index login_attempt_logs_kakao_user_id_idx on public.login_attempt_logs(kakao_user_id);
 create index sessions_expires_at_idx on public.sessions(expires_at);
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'document-signatures',
+  'document-signatures',
+  true,
+  1048576,
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update
+set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 alter table public.branches enable row level security;
 alter table public.designers enable row level security;

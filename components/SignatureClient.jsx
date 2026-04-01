@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { normalizeTemplateContent } from "@/lib/templateContent";
 
+const SIGNATURE_EXPORT_MAX_WIDTH = 960;
+const SIGNATURE_EXPORT_MAX_HEIGHT = 320;
+const SIGNATURE_EXPORT_QUALITY = 0.72;
+
 function formatPhoneNumber(value) {
   const digits = String(value || "").replace(/\D/g, "");
 
@@ -44,6 +48,111 @@ function bypassMessage(reason) {
   }
 
   return "";
+}
+
+function getSignatureBounds(canvas) {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const { width, height } = canvas;
+  const { data } = ctx.getImageData(0, 0, width, height);
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (data[(y * width + x) * 4 + 3] === 0) {
+        continue;
+      }
+
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  if (maxX < 0 || maxY < 0) {
+    return null;
+  }
+
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1
+  };
+}
+
+function createCompressedSignatureCanvas(canvas) {
+  const bounds = getSignatureBounds(canvas);
+
+  if (!bounds) {
+    return null;
+  }
+
+  const padding = Math.max(18, Math.round(Math.min(bounds.width, bounds.height) * 0.12));
+  const cropX = Math.max(0, bounds.minX - padding);
+  const cropY = Math.max(0, bounds.minY - padding);
+  const cropWidth = Math.min(canvas.width - cropX, bounds.width + padding * 2);
+  const cropHeight = Math.min(canvas.height - cropY, bounds.height + padding * 2);
+  const scale = Math.min(
+    1,
+    SIGNATURE_EXPORT_MAX_WIDTH / cropWidth,
+    SIGNATURE_EXPORT_MAX_HEIGHT / cropHeight
+  );
+  const targetWidth = Math.max(1, Math.round(cropWidth * scale));
+  const targetHeight = Math.max(1, Math.round(cropHeight * scale));
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = targetWidth;
+  exportCanvas.height = targetHeight;
+  const exportCtx = exportCanvas.getContext("2d");
+  exportCtx.fillStyle = "#ffffff";
+  exportCtx.fillRect(0, 0, targetWidth, targetHeight);
+  exportCtx.imageSmoothingEnabled = true;
+  exportCtx.imageSmoothingQuality = "high";
+  exportCtx.drawImage(
+    canvas,
+    cropX,
+    cropY,
+    cropWidth,
+    cropHeight,
+    0,
+    0,
+    targetWidth,
+    targetHeight
+  );
+
+  return exportCanvas;
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+        return;
+      }
+
+      reject(new Error("서명 이미지를 생성하지 못했습니다."));
+    }, type, quality);
+  });
+}
+
+async function createCompressedSignatureBlob(canvas) {
+  const exportCanvas = createCompressedSignatureCanvas(canvas);
+
+  if (!exportCanvas) {
+    return null;
+  }
+
+  try {
+    return await canvasToBlob(exportCanvas, "image/webp", SIGNATURE_EXPORT_QUALITY);
+  } catch {
+    return await canvasToBlob(exportCanvas, "image/jpeg", 0.76);
+  }
 }
 
 export default function SignatureClient({
@@ -137,14 +246,24 @@ export default function SignatureClient({
 
   async function saveSignature() {
     const canvas = canvasRef.current;
-    const dataUrl = canvas.toDataURL("image/png");
     setError("");
     setIsSaving(true);
 
+    const signatureBlob = await createCompressedSignatureBlob(canvas);
+
+    if (!signatureBlob) {
+      setIsSaving(false);
+      setError("서명을 먼저 입력해 주세요.");
+      return;
+    }
+
+    const formData = new FormData();
+    const extension = signatureBlob.type === "image/webp" ? "webp" : "jpg";
+    formData.append("signature", signatureBlob, `signature.${extension}`);
+
     const response = await fetch(`/api/documents/${token}/sign`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ signatureDataUrl: dataUrl })
+      body: formData
     });
 
     const data = await response.json();
@@ -239,16 +358,16 @@ export default function SignatureClient({
 
         <div className="signature-wrap">
           <h2 style={{ textAlign: "center", fontSize: "44px" }}>
-            {documentData.signature_data_url ? "서명 확인" : "서명하기"}
+            {documentData.signature_url ? "서명 확인" : "서명하기"}
           </h2>
 
           {isReadOnly ? (
             <div className="signature-readonly">
-              {documentData.signature_data_url ? (
+              {documentData.signature_url ? (
                 <>
                   <img
                     className="signature-preview"
-                    src={documentData.signature_data_url}
+                    src={documentData.signature_url}
                     alt="고객 서명"
                   />
                   {documentData.signed_at ? (
