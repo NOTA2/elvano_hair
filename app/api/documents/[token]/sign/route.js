@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { getDocumentByToken, signDocument } from "@/lib/db";
 import { serializePublicDocument } from "@/lib/documents";
+import { SignatureStorageError, uploadDocumentSignatureFile } from "@/lib/signatures";
 
 export async function POST(request, { params }) {
   const resolvedParams = await params;
@@ -24,13 +25,35 @@ export async function POST(request, { params }) {
     return Response.json({ document: serializePublicDocument(document) });
   }
 
-  const body = await request.json();
+  const contentType = request.headers.get("content-type") || "";
 
-  if (!body.signatureDataUrl || !String(body.signatureDataUrl).startsWith("data:image/png")) {
-    return Response.json({ error: "유효한 서명 데이터가 아닙니다." }, { status: 400 });
+  if (!contentType.includes("multipart/form-data")) {
+    return Response.json({ error: "서명 파일 업로드 형식이 올바르지 않습니다." }, { status: 400 });
   }
 
-  const signedDocument = await signDocument(document.token, body.signatureDataUrl);
+  let signatureStoragePath = "";
+
+  try {
+    const formData = await request.formData();
+    const signatureFile = formData.get("signature");
+
+    if (!signatureFile || typeof signatureFile.arrayBuffer !== "function") {
+      return Response.json({ error: "유효한 서명 파일이 아닙니다." }, { status: 400 });
+    }
+
+    signatureStoragePath = await uploadDocumentSignatureFile({
+      token: document.token,
+      file: signatureFile
+    });
+  } catch (error) {
+    if (error instanceof SignatureStorageError) {
+      return Response.json({ error: error.message }, { status: error.status });
+    }
+
+    return Response.json({ error: "서명 이미지 저장에 실패했습니다." }, { status: 500 });
+  }
+
+  const signedDocument = await signDocument(document.token, signatureStoragePath);
   cookieStore.delete(`verified_document_${document.token}`);
 
   return Response.json({ document: serializePublicDocument(signedDocument) });
