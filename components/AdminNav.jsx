@@ -34,81 +34,35 @@ function profileRoleText(session) {
   return branchLabel ? `${roleLabel} · ${branchLabel}` : roleLabel;
 }
 
+function getRoleEmoji(role) {
+  if (role === INTEGRATED_MASTER_ROLE) {
+    return "👑";
+  }
+
+  if (role === BRANCH_MASTER_ROLE) {
+    return "🏬";
+  }
+
+  return "🧑‍💼";
+}
+
+const NAV_ICON_MAP = {
+  dashboard: "📊",
+  branches: "🏬",
+  templates: "📄",
+  alimtalk: "💬",
+  designers: "💇",
+  documents: "🧾",
+  approval: "✅",
+  manual: "📚",
+  users: "👥"
+};
+
 function NavIcon({ kind }) {
-  if (kind === "dashboard") {
-    return (
-      <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 13h7V4H4v9Zm9 7h7v-5h-7v5Zm0-9h7V4h-7v7ZM4 20h7v-5H4v5Z" />
-      </svg>
-    );
-  }
-
-  if (kind === "branches") {
-    return (
-      <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 20h16v-2H4v2Zm2-4h4V4H6v12Zm8 0h4V9h-4v7Z" />
-      </svg>
-    );
-  }
-
-  if (kind === "templates") {
-    return (
-      <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M6 4h9l5 5v11H6V4Zm8 1.5V10h4.5" />
-      </svg>
-    );
-  }
-
-  if (kind === "alimtalk") {
-    return (
-      <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
-      </svg>
-    );
-  }
-
-  if (kind === "designers") {
-    return (
-      <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M7 18a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
-      </svg>
-    );
-  }
-
-  if (kind === "documents") {
-    return (
-      <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M7 3h7l5 5v13H7V3Zm3 12h6m-6-4h6m-6 8h4" />
-      </svg>
-    );
-  }
-
-  if (kind === "approval") {
-    return (
-      <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="9" cy="8" r="3" />
-        <path d="M4.5 19a4.5 4.5 0 0 1 9 0" />
-        <path d="M18 8v6" />
-        <path d="M15 11h6" />
-      </svg>
-    );
-  }
-
-  if (kind === "manual") {
-    return (
-      <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M6 4.5A2.5 2.5 0 0 1 8.5 2H20v17H8.5A2.5 2.5 0 0 0 6 21.5V4.5Z" />
-        <path d="M6 4.5A2.5 2.5 0 0 0 3.5 2H2v17h1.5A2.5 2.5 0 0 1 6 21.5" />
-        <path d="M9 7h7" />
-        <path d="M9 11h7" />
-      </svg>
-    );
-  }
-
   return (
-    <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" />
-    </svg>
+    <span className="nav-icon" aria-hidden="true">
+      {NAV_ICON_MAP[kind] || "👤"}
+    </span>
   );
 }
 
@@ -163,6 +117,8 @@ export default function AdminNav({ session, branchOptions = [] }) {
   const pathname = usePathname();
   const navGroups = getNavGroups(session);
   const identity = session.nickname || session.kakao_user_id;
+  const roleEmoji = getRoleEmoji(session.role);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewRole, setPreviewRole] = useState(session.role || INTEGRATED_MASTER_ROLE);
   const [previewBranchId, setPreviewBranchId] = useState(
     session.branch_id ? String(session.branch_id) : String(branchOptions[0]?.id || "")
@@ -171,6 +127,7 @@ export default function AdminNav({ session, branchOptions = [] }) {
     previewRole === BRANCH_MASTER_ROLE || previewRole === ADMIN_ROLE;
 
   useEffect(() => {
+    setIsPreviewOpen(false);
     setPreviewRole(session.role || INTEGRATED_MASTER_ROLE);
     setPreviewBranchId(
       session.branch_id ? String(session.branch_id) : String(branchOptions[0]?.id || "")
@@ -181,57 +138,89 @@ export default function AdminNav({ session, branchOptions = [] }) {
     <div className="admin-nav">
       <div className="admin-nav-inner">
         <div className="admin-profile">
-          <div className="admin-avatar">{getInitials(identity)}</div>
+          <div className="admin-avatar-shell">
+            <div className="admin-avatar">{getInitials(identity)}</div>
+          </div>
           <div className="admin-profile-copy">
             <div className="admin-brand-line">Elvano Admin</div>
             <h2 className="admin-profile-name">{identity}</h2>
-            <p className="admin-profile-role">{profileRoleText(session)}</p>
-            {session.is_system_master ? (
-              <form action="/api/auth/preview-role" method="post" className="admin-preview-form">
-                <div className="admin-preview-label">권한 미리보기</div>
-                <SelectField
-                  name="preview_role"
-                  value={previewRole}
-                  onChange={(event) => {
-                    const nextRole = event.target.value;
-                    setPreviewRole(nextRole);
-
-                    if (
-                      nextRole !== INTEGRATED_MASTER_ROLE &&
-                      !previewBranchId &&
-                      branchOptions[0]?.id
-                    ) {
-                      setPreviewBranchId(String(branchOptions[0].id));
-                    }
+            <div className="admin-profile-row">
+              <div className="admin-role-pill">
+                <span className="admin-role-emoji" aria-hidden="true">
+                  {roleEmoji}
+                </span>
+                <span>{profileRoleText(session)}</span>
+              </div>
+              {session.is_system_master ? (
+                <button
+                  type="button"
+                  className="secondary admin-preview-toggle"
+                  aria-expanded={isPreviewOpen}
+                  aria-controls="admin-preview-panel"
+                  aria-label={isPreviewOpen ? "권한 미리보기 닫기" : "권한 미리보기 열기"}
+                  title={isPreviewOpen ? "권한 미리보기 닫기" : "권한 미리보기 열기"}
+                  onClick={() => {
+                    setIsPreviewOpen((current) => !current);
                   }}
-                  wrapperClassName="admin-preview-select"
                 >
-                  <option value={INTEGRATED_MASTER_ROLE}>통합 마스터</option>
-                  <option value={BRANCH_MASTER_ROLE}>지점 마스터</option>
-                  <option value={ADMIN_ROLE}>일반 어드민</option>
-                </SelectField>
-                {needsBranchSelection ? (
+                  <span aria-hidden="true">✨</span>
+                </button>
+              ) : null}
+            </div>
+            {session.is_system_master ? (
+              <form
+                action="/api/auth/preview-role"
+                method="post"
+                className={`admin-preview-form ${isPreviewOpen ? "open" : ""}`}
+                id="admin-preview-panel"
+                hidden={!isPreviewOpen}
+              >
+                <div className="admin-preview-label">권한 미리보기</div>
+                <div className="admin-preview-controls">
                   <SelectField
-                    name="preview_branch_id"
-                    value={previewBranchId}
+                    name="preview_role"
+                    value={previewRole}
                     onChange={(event) => {
-                      setPreviewBranchId(event.target.value);
+                      const nextRole = event.target.value;
+                      setPreviewRole(nextRole);
+
+                      if (
+                        nextRole !== INTEGRATED_MASTER_ROLE &&
+                        !previewBranchId &&
+                        branchOptions[0]?.id
+                      ) {
+                        setPreviewBranchId(String(branchOptions[0].id));
+                      }
                     }}
                     wrapperClassName="admin-preview-select"
-                    placeholder="지점 선택"
                   >
-                    {branchOptions.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </option>
-                    ))}
+                    <option value={INTEGRATED_MASTER_ROLE}>통합 마스터</option>
+                    <option value={BRANCH_MASTER_ROLE}>지점 마스터</option>
+                    <option value={ADMIN_ROLE}>일반 어드민</option>
                   </SelectField>
-                ) : (
-                  <input type="hidden" name="preview_branch_id" value="" />
-                )}
-                <button type="submit" className="secondary admin-preview-button">
-                  적용
-                </button>
+                  {needsBranchSelection ? (
+                    <SelectField
+                      name="preview_branch_id"
+                      value={previewBranchId}
+                      onChange={(event) => {
+                        setPreviewBranchId(event.target.value);
+                      }}
+                      wrapperClassName="admin-preview-select"
+                      placeholder="지점 선택"
+                    >
+                      {branchOptions.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </option>
+                      ))}
+                    </SelectField>
+                  ) : (
+                    <input type="hidden" name="preview_branch_id" value="" />
+                  )}
+                  <button type="submit" className="admin-preview-button">
+                    적용
+                  </button>
+                </div>
               </form>
             ) : null}
           </div>
