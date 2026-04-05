@@ -63,13 +63,6 @@ export default async function BranchesPage({ searchParams }) {
       <AdminSectionIntro
         eyebrow="Branch Control"
         title="지점 관리"
-        description={
-          <>
-            지점은 문서, 디자이너, 지점 마스터 권한의 기준 단위입니다.
-            <br />
-            목록을 먼저 확인하고 필요할 때만 모달에서 추가 또는 수정합니다.
-          </>
-        }
       />
       <section className="panel">
         <div className="panel-toolbar">
@@ -89,12 +82,6 @@ export default async function BranchesPage({ searchParams }) {
             {canCreateBranch ? (
               <ModalDialog
                 title="지점 추가"
-                description={
-                  <>
-                    새 지점을 등록하면 디자이너, 템플릿, 지점 마스터 권한의 기준으로
-                    사용할 수 있습니다.
-                  </>
-                }
                 triggerLabel="지점 추가"
               >
                 <form action="/api/admin/branches" method="post">
@@ -161,11 +148,6 @@ export default async function BranchesPage({ searchParams }) {
                     </span>
                     <ModalDialog
                       title={`${branch.name} 지점 수정`}
-                      description={
-                        <>
-                          지점명, 상태, 설명을 수정할 수 있습니다.
-                        </>
-                      }
                       triggerLabel="수정"
                     >
                       <form action="/api/admin/branches" method="post">

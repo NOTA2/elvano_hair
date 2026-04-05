@@ -52,9 +52,6 @@ export default function DashboardBarChart({ items = [] }) {
       <div className="dashboard-chart-caption">
         <div>
           <div className="dashboard-chart-caption-title">지점별 완료 비교</div>
-          <div className="dashboard-chart-caption-copy">
-            완료 수 기준 상위 지점과 전체 흐름을 한 번에 확인합니다.
-          </div>
         </div>
         <div className="dashboard-chart-legend">
           <span className="metric-pill">총 완료 {totalCompleted}건</span>

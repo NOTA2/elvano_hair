@@ -1662,6 +1662,57 @@ td {
   padding: 20px 18px 10px;
 }
 
+.dashboard-chart-copy-skeleton {
+  display: grid;
+  gap: 10px;
+  min-width: min(360px, 100%);
+}
+
+.dashboard-chart-loading-surface {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+  padding: 20px 12px 12px;
+}
+
+.dashboard-chart-loading-grid {
+  position: absolute;
+  inset: 20px 12px 12px;
+  border-radius: 22px;
+  background-image:
+    linear-gradient(rgba(206, 218, 233, 0.7) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(206, 218, 233, 0.35) 1px, transparent 1px);
+  background-size: 100% 64px, 72px 100%;
+  opacity: 0.72;
+}
+
+.dashboard-chart-loading-bars {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-auto-flow: column;
+  align-items: end;
+  gap: 16px;
+  width: 100%;
+  height: 100%;
+}
+
+.dashboard-chart-loading-bar {
+  border-radius: 999px 999px 14px 14px;
+  background: linear-gradient(180deg, rgba(120, 167, 255, 0.92), rgba(110, 152, 212, 0.28));
+  box-shadow: 0 10px 24px rgba(110, 152, 212, 0.18);
+}
+
+.dashboard-chart-loading-bar.line {
+  justify-self: stretch;
+  align-self: center;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(120, 167, 255, 0.2), rgba(110, 152, 212, 0.92));
+}
+
 .dashboard-chart-panel .recharts-cartesian-grid-horizontal line {
   stroke: #dde6f0;
 }
@@ -2150,6 +2201,34 @@ td {
 
 .admin-loading-kpis {
   flex-wrap: wrap;
+}
+
+.modal-loading-shell {
+  display: grid;
+  gap: 20px;
+}
+
+.modal-loading-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.modal-loading-editor {
+  display: grid;
+  gap: 12px;
+  min-height: 220px;
+  padding: 22px 18px;
+  border-radius: 24px;
+  border: 1px solid var(--admin-line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(244, 248, 252, 0.96)),
+    radial-gradient(circle at top left, rgba(120, 167, 255, 0.08), transparent 34%);
+}
+
+.modal-loading-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .loading-skeleton {

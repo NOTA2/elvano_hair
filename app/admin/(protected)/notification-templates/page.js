@@ -137,15 +137,7 @@ export default async function NotificationTemplatesPage({ searchParams }) {
     <div className="section-stack">
       <AdminSectionIntro
         eyebrow="Quick Help"
-        title="알림톡 템플릿 준비가 처음이신가요?"
-        description={
-          <>
-            메뉴얼에서 준비 순서와 Bizgo에 넣는 자동 입력 문구를 먼저 확인할 수
-            있습니다.
-            <br />
-            알림톡 템플릿은 Bizgo 콘솔에서 만든 뒤, 이 화면에서는 코드만 등록합니다.
-          </>
-        }
+        title="알림톡 템플릿 준비"
         actions={
           <>
             <Link className="button secondary" href="/admin/manual">
@@ -165,14 +157,6 @@ export default async function NotificationTemplatesPage({ searchParams }) {
       <AdminSectionIntro
         eyebrow="Alimtalk Template Center"
         title="알림톡 템플릿 관리"
-        description={
-          <>
-            Bizgo 콘솔에서 만든 알림톡을 여기에서 연결해 사용합니다.
-            <br />
-            템플릿 코드를 등록하면 목록에서 승인 상태와 사용 여부를 함께 확인할 수
-            있습니다.
-          </>
-        }
       />
       <section className="panel">
         <div className="panel-toolbar">
@@ -195,12 +179,6 @@ export default async function NotificationTemplatesPage({ searchParams }) {
             <div className="inline-actions">
               <ModalDialog
                 title="알림톡 템플릿 코드 등록"
-                description={
-                  <>
-                    Bizgo 콘솔에 이미 등록된 알림톡 템플릿 코드를 로컬 목록에
-                    연결합니다.
-                  </>
-                }
                 triggerLabel="템플릿 코드 등록"
                 size="wide"
               >

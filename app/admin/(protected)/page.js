@@ -1,6 +1,6 @@
 import DashboardPeriodControls from "@/components/DashboardPeriodControls";
-import DashboardBarChart from "@/components/DashboardBarChart";
-import DashboardLineChart from "@/components/DashboardLineChart";
+import LazyDashboardBarChart from "@/components/LazyDashboardBarChart";
+import LazyDashboardLineChart from "@/components/LazyDashboardLineChart";
 import {
   isIntegratedMaster,
   requireAdminSession
@@ -305,11 +305,7 @@ export default async function AdminDashboardPage({ searchParams }) {
         <div className="panel-head">
           <div>
             <div className="panel-eyebrow">Dashboard</div>
-            <h2 className="panel-title">운영 현황을 빠르게 확인</h2>
-            <p className="panel-copy">
-              {session.branch_name ? `${session.branch_name} 지점` : "전체 지점"} 기준으로
-              최근 문서 발급, 서명 완료율, 관리자 구성을 한 번에 확인할 수 있습니다.
-            </p>
+            <h2 className="panel-title">운영 현황</h2>
           </div>
           <div className="panel-kpi-row">
             <span className="metric-pill">서명 완료율 {signRate}%</span>
@@ -352,9 +348,6 @@ export default async function AdminDashboardPage({ searchParams }) {
             <div>
               <div className="panel-eyebrow">Branch Activity</div>
               <h2 className="panel-title">지점별 서명 완료 현황</h2>
-              <p className="panel-copy">
-                선택한 기간 안에서 지점별 서명 완료 건수를 비교해서 볼 수 있습니다.
-              </p>
             </div>
             <div className="panel-actions">
               <DashboardPeriodControls
@@ -371,7 +364,7 @@ export default async function AdminDashboardPage({ searchParams }) {
           {!hasBranchChartItems ? (
             <div className="empty-state">선택한 기간의 서명 완료 문서가 없습니다.</div>
           ) : (
-            <DashboardBarChart items={branchChartItems} />
+            <LazyDashboardBarChart items={branchChartItems} />
           )}
         </section>
       ) : null}
@@ -381,10 +374,6 @@ export default async function AdminDashboardPage({ searchParams }) {
           <div>
             <div className="panel-eyebrow">Signed Trend</div>
             <h2 className="panel-title">기간별 서명 완료 추이</h2>
-            <p className="panel-copy">
-              선택한 기간 동안 서명 완료가 어떻게 변했는지 선 그래프로 확인할 수
-              있습니다. 점 위에 마우스를 올리면 해당 구간의 완료 건수가 보입니다.
-            </p>
           </div>
           <div className="panel-actions">
             <DashboardPeriodControls
@@ -401,7 +390,7 @@ export default async function AdminDashboardPage({ searchParams }) {
         </div>
 
         {trendItems.length > 0 ? (
-          <DashboardLineChart
+          <LazyDashboardLineChart
             branchName={trendBranchName}
             totalCount={trendItems.reduce((sum, item) => sum + item.count, 0)}
             items={trendItems}

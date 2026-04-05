@@ -37,9 +37,6 @@ export default async function AdminLoginPage({ searchParams }) {
       <div className="login-card hero-card login-card-standalone">
         <div className="brand-kicker">Admin Login</div>
         <h2 className="login-card-title">카카오톡 로그인</h2>
-        <p className="muted">
-          허용된 관리자만 접근할 수 있습니다.
-        </p>
         {errorMessage ? <p className="login-error">{errorMessage}</p> : null}
         <div className="form-actions" style={{ marginTop: 24 }}>
           <Link className="kakao-login-button" href="/api/auth/kakao/start">
