@@ -16,12 +16,6 @@ export default async function ProtectedAdminLayout({ children }) {
         </aside>
         <section className="admin-main">
           <div className="admin-main-inner">
-            <div className="admin-header">
-              <div className="admin-header-copy">
-                <div className="admin-header-eyebrow">Elvano Hair Operations</div>
-                <h1 className="admin-header-title">고객 안내문 운영</h1>
-              </div>
-            </div>
             <div className="admin-content">{children}</div>
           </div>
         </section>
