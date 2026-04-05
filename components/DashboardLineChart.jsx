@@ -47,9 +47,6 @@ export default function DashboardLineChart({ branchName, totalCount, items = [] 
       <div className="dashboard-chart-caption">
         <div>
           <div className="dashboard-chart-caption-title">서명 완료 추이</div>
-          <div className="dashboard-chart-caption-copy">
-            기간별 완료 흐름을 부드러운 추이선으로 확인합니다.
-          </div>
         </div>
         <div className="dashboard-chart-legend">
           <span className="metric-pill">{branchName}</span>

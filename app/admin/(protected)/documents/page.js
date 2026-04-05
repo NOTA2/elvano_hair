@@ -1,7 +1,7 @@
-import AdminDocumentIssueForm from "@/components/AdminDocumentIssueForm";
 import AdminSectionIntro from "@/components/AdminSectionIntro";
 import AlertOnMount from "@/components/AlertOnMount";
 import DocumentsListControls from "@/components/DocumentsListControls";
+import LazyAdminDocumentIssueForm from "@/components/LazyAdminDocumentIssueForm";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
 import {
@@ -12,11 +12,7 @@ import { getBaseUrl } from "@/lib/config";
 import {
   countDocuments,
   listBranches,
-  listDesigners,
-  listDocumentsByIds,
-  listDocumentsPage,
-  listNotificationTemplates,
-  listTemplates
+  listDocumentsPage
 } from "@/lib/db";
 import {
   parseDirection,
@@ -109,21 +105,15 @@ export default async function AdminDocumentsPage({ searchParams }) {
       ? requestedBranchId
       : session.branch_id || undefined;
   const [
-    allBranches,
-    documentTemplates,
-    notificationTemplates,
-    designers,
+    branchOptions,
     documentsPage,
     signedCount,
     pendingCount,
     failedCount
   ] = await Promise.all([
-    listBranches({ activeOnly: true }),
-    listTemplates({ activeOnly: true }),
-    listNotificationTemplates({ activeOnly: true }),
-    listDesigners({
+    listBranches({
       activeOnly: true,
-      branchId: integratedMaster ? undefined : session.branch_id
+      branchId: integratedMaster ? undefined : session.branch_id || undefined
     }),
     listDocumentsPage({
       branchId,
@@ -136,16 +126,6 @@ export default async function AdminDocumentsPage({ searchParams }) {
     countDocuments({ branchId, status: "pending" }),
     countDocuments({ branchId, status: "failed" })
   ]);
-  const branches = integratedMaster
-    ? allBranches
-    : allBranches.filter((branch) => Number(branch.id) === Number(session.branch_id));
-  const editableDocumentIds = documentsPage.items
-    .filter((document) => document.status !== "signed")
-    .map((document) => document.id);
-  const editableDocuments = await listDocumentsByIds(editableDocumentIds);
-  const editableDocumentsById = new Map(
-    editableDocuments.map((document) => [Number(document.id), document])
-  );
   const baseUrl = getBaseUrl();
   const pageMessage = String(resolvedSearchParams?.message || "").trim();
   const rawMessageType = String(resolvedSearchParams?.messageType || "").trim();
@@ -158,13 +138,6 @@ export default async function AdminDocumentsPage({ searchParams }) {
       <AdminSectionIntro
         eyebrow="Issued Documents"
         title="발급된 문서 목록"
-        description={
-          <>
-            최근에 생성된 순서대로 표시합니다.
-            <br />
-            새 문서 발급은 추가 버튼을 눌러 모달에서 진행합니다.
-          </>
-        }
       />
       <section className="panel">
         <div className="panel-toolbar">
@@ -179,7 +152,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
           <div className="panel-actions">
             <DocumentsListControls
               currentBranchId={branchId ? String(branchId) : ""}
-              branchOptions={allBranches}
+              branchOptions={branchOptions}
               branchDisabled={!integratedMaster}
               currentPageSize={pageSize}
               currentSort={sortKey}
@@ -189,24 +162,13 @@ export default async function AdminDocumentsPage({ searchParams }) {
             />
             <ModalDialog
               title="서명 문서 발급"
-              description={
-                <>
-                  문서 템플릿과 알림톡 템플릿을 각각 선택해 고객 안내문을 발급합니다.
-                  <br />
-                  발급과 동시에 선택한 Bizgo 알림톡으로 바로 전송합니다.
-                </>
-              }
               triggerLabel="문서 발급"
               size="wide"
             >
-              <AdminDocumentIssueForm
+              <LazyAdminDocumentIssueForm
                 branchLocked={!integratedMaster}
                 branchId={session.branch_id}
                 branchName={session.branch_name || ""}
-                branches={branches}
-                designers={designers}
-                documentTemplates={documentTemplates}
-                notificationTemplates={notificationTemplates}
               />
             </ModalDialog>
           </div>
@@ -232,12 +194,8 @@ export default async function AdminDocumentsPage({ searchParams }) {
                 <tbody>
                   {documentsPage.items.map((document) => {
                     const bizgoIndicatorState = bizgoIndicator(document.bizgo_status);
-                    const editableDocument = editableDocumentsById.get(Number(document.id));
-                    const isEditDisabled = document.status === "signed" || !editableDocument;
-                    const editDisabledReason =
-                      document.status === "signed"
-                        ? "서명 완료된 문서는 수정할 수 없습니다."
-                        : "문서 정보를 불러오지 못해 수정할 수 없습니다.";
+                    const isEditDisabled = document.status === "signed";
+                    const editDisabledReason = "서명 완료된 문서는 수정할 수 없습니다.";
 
                     return (
                       <tr key={document.id}>
@@ -288,28 +246,16 @@ export default async function AdminDocumentsPage({ searchParams }) {
                           {!isEditDisabled ? (
                             <ModalDialog
                               title="발급 문서 수정"
-                              description={
-                                <>
-                                  고객이 서명하기 전까지는 현재 발급된 문서 내용을 수정할 수
-                                  있습니다.
-                                  <br />
-                                  저장 후 필요하면 알림톡을 다시 재발송해 주세요.
-                                </>
-                              }
                               triggerLabel="문서 수정"
                               triggerClassName="secondary table-action-button"
                               size="wide"
                             >
-                              <AdminDocumentIssueForm
+                              <LazyAdminDocumentIssueForm
                                 mode="edit"
-                                initialDocument={editableDocument}
+                                documentToken={document.token}
                                 branchLocked={!integratedMaster}
                                 branchId={session.branch_id}
-                                branchName={editableDocument.branch_name || session.branch_name || ""}
-                                branches={branches}
-                                designers={designers}
-                                documentTemplates={documentTemplates}
-                                notificationTemplates={notificationTemplates}
+                                branchName={document.branch_name || session.branch_name || ""}
                               />
                             </ModalDialog>
                           ) : (
