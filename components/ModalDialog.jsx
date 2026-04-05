@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReadableText from "@/components/ReadableText";
 
 export default function ModalDialog({
@@ -14,6 +14,20 @@ export default function ModalDialog({
 }) {
   const dialogRef = useRef(null);
   const [hasOpened, setHasOpened] = useState(!lazy);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
 
   function openDialog() {
     if (!hasOpened) {
@@ -21,10 +35,12 @@ export default function ModalDialog({
     }
 
     dialogRef.current?.showModal();
+    setIsOpen(true);
   }
 
   function closeDialog() {
     dialogRef.current?.close();
+    setIsOpen(false);
   }
 
   function handleBackdropClick(event) {
@@ -41,6 +57,9 @@ export default function ModalDialog({
       <dialog
         ref={dialogRef}
         className={`modal-dialog ${size === "wide" ? "wide" : ""}`}
+        onClose={() => {
+          setIsOpen(false);
+        }}
         onClick={handleBackdropClick}
       >
         <div className="modal-card">

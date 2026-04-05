@@ -287,7 +287,7 @@ export default function SignatureClient({
           <div className="brand-kicker">Signature Link</div>
           <h1 className="verify-title">휴대폰 번호 확인</h1>
           <p className="muted">휴대폰 뒷자리 4자리를 입력해주세요.</p>
-          <form onSubmit={verifyPhone}>
+          <form className="verify-form" onSubmit={verifyPhone}>
             <input
               className="verify-input"
               inputMode="numeric"
@@ -297,11 +297,11 @@ export default function SignatureClient({
                 setPhoneLast4(event.target.value.replace(/\D/g, "").slice(0, 4));
               }}
             />
-            <div style={{ marginTop: 18 }}>
+            <div className="verify-actions">
               <button type="submit">확인</button>
             </div>
           </form>
-          {error ? <p style={{ color: "var(--danger)" }}>{error}</p> : null}
+          {error ? <p className="signature-error">{error}</p> : null}
         </div>
       </div>
     );
@@ -351,13 +351,13 @@ export default function SignatureClient({
 
         <div className="doc-consent">
           담당자로부터 위 내용에 대하여 충분히 설명을 들었으며, 위 내용에 동의합니다.
-          <div style={{ marginTop: 18 }}>
+          <div className="doc-consent-name">
             이름 : {documentData.customer_name}
           </div>
         </div>
 
         <div className="signature-wrap">
-          <h2 style={{ textAlign: "center", fontSize: "44px" }}>
+          <h2 className="signature-title">
             {documentData.signature_url ? "서명 확인" : "서명하기"}
           </h2>
 
@@ -406,9 +406,7 @@ export default function SignatureClient({
             </>
           )}
 
-          {error ? (
-            <p style={{ color: "var(--danger)", textAlign: "center" }}>{error}</p>
-          ) : null}
+          {error ? <p className="signature-error center">{error}</p> : null}
         </div>
       </div>
     </div>
