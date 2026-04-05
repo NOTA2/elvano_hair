@@ -1,155 +1,117 @@
 "use client";
 
-import { useRef, useState } from "react";
+import {
+  Area,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from "recharts";
 
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
+function getLabelStep(length) {
+  if (length > 20) {
+    return 5;
+  }
+
+  if (length > 10) {
+    return 2;
+  }
+
+  return 1;
 }
 
-function buildTooltipPosition(event, container) {
-  if (!container) {
+function DashboardLineTooltip({ active, payload }) {
+  const item = payload?.[0]?.payload;
+
+  if (!active || !item) {
     return null;
   }
 
-  const rect = container.getBoundingClientRect();
-  const x = clamp(event.clientX - rect.left, 24, rect.width - 24);
-  const y = clamp(event.clientY - rect.top, 24, rect.height - 8);
-
-  return { x, y };
+  return (
+    <div className="dashboard-recharts-tooltip">
+      <div className="dashboard-recharts-tooltip-label">{item.label}</div>
+      <div className="dashboard-recharts-tooltip-value">서명 완료 {item.count}건</div>
+    </div>
+  );
 }
 
-export default function DashboardLineChart({
-  branchName,
-  totalCount,
-  chartWidth,
-  chartHeight,
-  chartPaddingX,
-  chartPaddingTop,
-  chartPaddingBottom,
-  chart
-}) {
-  const containerRef = useRef(null);
-  const [tooltip, setTooltip] = useState(null);
-  const plotTop = chartPaddingTop;
-  const plotBottom = chartHeight - chartPaddingBottom;
-
-  function showTooltip(event, label) {
-    const position = buildTooltipPosition(event, containerRef.current);
-
-    if (!position) {
-      return;
-    }
-
-    setTooltip({
-      ...position,
-      label
-    });
-  }
-
-  function showTooltipFromElement(element, label) {
-    if (!containerRef.current || !element) {
-      return;
-    }
-
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const rect = element.getBoundingClientRect();
-    const x = clamp(
-      rect.left - containerRect.left + rect.width / 2,
-      24,
-      containerRect.width - 24
-    );
-    const y = clamp(rect.top - containerRect.top + 12, 24, containerRect.height - 8);
-
-    setTooltip({ x, y, label });
-  }
-
-  function hideTooltip() {
-    setTooltip(null);
-  }
+export default function DashboardLineChart({ branchName, totalCount, items = [] }) {
+  const labelStep = getLabelStep(items.length);
+  const peakPoint = [...items].sort((left, right) => right.count - left.count)[0];
 
   return (
-    <div ref={containerRef} className="dashboard-chart-shell">
-      {tooltip ? (
-        <div className="dashboard-chart-tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
-          {tooltip.label}
+    <div className="dashboard-chart-panel">
+      <div className="dashboard-chart-caption">
+        <div>
+          <div className="dashboard-chart-caption-title">서명 완료 추이</div>
+          <div className="dashboard-chart-caption-copy">
+            기간별 완료 흐름을 부드러운 추이선으로 확인합니다.
+          </div>
         </div>
-      ) : null}
-
-      <div className="dashboard-line-chart-card">
-        <div className="dashboard-line-chart-meta">
+        <div className="dashboard-chart-legend">
           <span className="metric-pill">{branchName}</span>
-          <span className="metric-pill">완료 {totalCount}건</span>
+          <span className="metric-pill soft">총 {totalCount}건</span>
+          {peakPoint ? (
+            <span className="metric-pill soft">
+              최고 {peakPoint.label} {peakPoint.count}건
+            </span>
+          ) : null}
         </div>
-        <svg
-          className="dashboard-line-chart"
-          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          role="img"
-          aria-label={`${branchName} 서명 완료 추이`}
-        >
-          {chart.guideValues.map((value, index) => {
-            const y =
-              chartPaddingTop +
-              (chartHeight - chartPaddingTop - chartPaddingBottom) -
-              ((chartHeight - chartPaddingTop - chartPaddingBottom) * value) /
-                Math.max(1, chart.maxValue);
+      </div>
 
-            return (
-              <g key={`guide-${index}-${value}`}>
-                <line
-                  x1={chartPaddingX}
-                  x2={chartWidth - chartPaddingX}
-                  y1={y}
-                  y2={y}
-                  className="dashboard-line-guide"
-                />
-                <text x={8} y={y + 4} className="dashboard-line-guide-label">
-                  {value}
-                </text>
-              </g>
-            );
-          })}
-
-          <path d={chart.path} className="dashboard-line-path" />
-
-          {chart.points.map((point, index) => {
-            const prevPoint = chart.points[index - 1];
-            const nextPoint = chart.points[index + 1];
-            const leftBoundary = prevPoint ? (prevPoint.x + point.x) / 2 : chartPaddingX;
-            const rightBoundary = nextPoint
-              ? (point.x + nextPoint.x) / 2
-              : chartWidth - chartPaddingX;
-            const label = `${point.label} · ${point.count}건`;
-
-            return (
-            <g key={point.key}>
-              <rect
-                x={leftBoundary}
-                y={plotTop}
-                width={Math.max(24, rightBoundary - leftBoundary)}
-                height={plotBottom - plotTop}
-                className="dashboard-line-hitband"
-                tabIndex={0}
-                onMouseEnter={(event) => showTooltip(event, label)}
-                onMouseMove={(event) => showTooltip(event, label)}
-                onMouseLeave={hideTooltip}
-                onFocus={(event) => showTooltipFromElement(event.currentTarget, label)}
-                onBlur={hideTooltip}
-              />
-              <circle cx={point.x} cy={point.y} r="5" className="dashboard-line-point" />
-              {point.showLabel ? (
-                <text
-                  x={point.x}
-                  y={chartHeight - 12}
-                  textAnchor="middle"
-                  className="dashboard-line-axis-label"
-                >
-                  {point.label}
-                </text>
-              ) : null}
-            </g>
-            );
-          })}
-        </svg>
+      <div className="dashboard-line-chart-surface">
+        <ResponsiveContainer width="100%" height={320}>
+          <LineChart data={items} margin={{ top: 18, right: 18, left: 0, bottom: 8 }}>
+            <defs>
+              <linearGradient id="dashboard-line-area" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#78a7ff" stopOpacity="0.28" />
+                <stop offset="100%" stopColor="#78a7ff" stopOpacity="0.03" />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} stroke="#dde6f0" strokeDasharray="4 6" />
+            <XAxis
+              dataKey="label"
+              axisLine={false}
+              tickLine={false}
+              minTickGap={8}
+              tickMargin={12}
+              tick={{ fill: "#7c8798", fontSize: 11, fontWeight: 700 }}
+              tickFormatter={(value, index) =>
+                index % labelStep === 0 || index === items.length - 1 ? value : ""
+              }
+            />
+            <YAxis
+              allowDecimals={false}
+              axisLine={false}
+              tickLine={false}
+              domain={[0, (dataMax) => Math.max(1, Number(dataMax) || 0)]}
+              width={34}
+              tick={{ fill: "#7c8798", fontSize: 11, fontWeight: 700 }}
+            />
+            <Tooltip
+              cursor={{ stroke: "#cad7ea", strokeDasharray: "4 4" }}
+              content={<DashboardLineTooltip />}
+            />
+            <Area
+              type="monotone"
+              dataKey="count"
+              stroke="none"
+              fill="url(#dashboard-line-area)"
+              fillOpacity={1}
+            />
+            <Line
+              type="monotone"
+              dataKey="count"
+              stroke="#6e98d4"
+              strokeWidth={3}
+              dot={{ r: 4, fill: "#ffffff", stroke: "#6e98d4", strokeWidth: 3 }}
+              activeDot={{ r: 6, fill: "#6e98d4", stroke: "#ffffff", strokeWidth: 3 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
