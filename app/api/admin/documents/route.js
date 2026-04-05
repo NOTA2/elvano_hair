@@ -24,6 +24,10 @@ import {
   sanitizeTemplateContent,
   toHtmlTemplateValues
 } from "@/lib/templateContent";
+import {
+  isValidKoreanMobilePhone,
+  normalizeKoreanMobilePhone
+} from "@/lib/phone";
 
 function redirectBack(headerStore, params = {}) {
   const url = new URL(headerStore.get("referer") || "/admin/documents", getBaseUrl());
@@ -38,10 +42,6 @@ function redirectBack(headerStore, params = {}) {
   });
 
   return Response.redirect(url.toString(), 302);
-}
-
-function normalizePhone(value) {
-  return String(value || "").replace(/\D/g, "");
 }
 
 function toErrorMessage(error, fallback) {
@@ -186,14 +186,16 @@ export async function POST(request) {
       });
     }
 
-    const recipientPhone = normalizePhone(formData.get("recipient_phone"));
+    const rawRecipientPhone = formData.get("recipient_phone");
 
-    if (recipientPhone.length < 8) {
+    if (!isValidKoreanMobilePhone(rawRecipientPhone)) {
       return redirectBack(headerStore, {
-        message: "휴대폰번호를 정확히 입력해야 합니다.",
+        message: "한국 휴대폰번호를 정확히 입력해야 합니다.",
         messageType: "error"
       });
     }
+
+    const recipientPhone = normalizeKoreanMobilePhone(rawRecipientPhone);
 
     const renderedContent = normalizeTemplateContent(
       sanitizeTemplateContent(formData.get("content"))
@@ -280,11 +282,16 @@ export async function POST(request) {
     return redirectBack(headerStore);
   }
 
-  const recipientPhone = normalizePhone(formData.get("recipient_phone"));
+  const rawRecipientPhone = formData.get("recipient_phone");
 
-  if (recipientPhone.length < 8) {
-    return redirectBack(headerStore);
+  if (!isValidKoreanMobilePhone(rawRecipientPhone)) {
+    return redirectBack(headerStore, {
+      message: "한국 휴대폰번호를 정확히 입력해야 합니다.",
+      messageType: "error"
+    });
   }
+
+  const recipientPhone = normalizeKoreanMobilePhone(rawRecipientPhone);
 
   const phoneLast4 = recipientPhone.slice(-4);
   const content = normalizeTemplateContent(

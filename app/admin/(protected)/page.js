@@ -20,11 +20,6 @@ const PERIOD_OPTIONS = [
   { value: "1m", label: "전체 1달" },
   { value: "1w", label: "전체 1주일" }
 ];
-const CHART_WIDTH = 760;
-const CHART_HEIGHT = 240;
-const CHART_PADDING_X = 28;
-const CHART_PADDING_TOP = 24;
-const CHART_PADDING_BOTTOM = 42;
 
 function statusClass(status) {
   if (status === "signed") return "signed";
@@ -233,38 +228,6 @@ function buildSignedTrend({ documents, period }) {
   return buckets;
 }
 
-function buildLineChartModel(items = []) {
-  const innerWidth = CHART_WIDTH - CHART_PADDING_X * 2;
-  const innerHeight = CHART_HEIGHT - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
-  const maxValue = Math.max(1, ...items.map((item) => item.count));
-  const denominator = Math.max(1, items.length - 1);
-  const labelInterval = items.length > 18 ? 5 : items.length > 10 ? 2 : 1;
-
-  const points = items.map((item, index) => {
-    const x = CHART_PADDING_X + (innerWidth * index) / denominator;
-    const y =
-      CHART_PADDING_TOP + innerHeight - (innerHeight * item.count) / maxValue;
-
-    return {
-      ...item,
-      x,
-      y,
-      showLabel: index % labelInterval === 0 || index === items.length - 1
-    };
-  });
-
-  const path = points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
-
-  return {
-    points,
-    path,
-    maxValue,
-    guideValues: Array.from(new Set([maxValue, Math.round(maxValue / 2), 0]))
-  };
-}
-
 export default async function AdminDashboardPage({ searchParams }) {
   const [session, resolvedSearchParams] = await Promise.all([
     requireAdminSession(),
@@ -331,14 +294,10 @@ export default async function AdminDashboardPage({ searchParams }) {
     documents: trendDocuments,
     period
   });
-  const trendChart = buildLineChartModel(trendItems);
   const trendBranchName = trendBranchId
     ? branches.find((branch) => Number(branch.id) === Number(trendBranchId))?.name || "-"
     : "전체 지점";
-  const maxChartValue = Math.max(
-    1,
-    ...branchChartItems.map((item) => item.completed)
-  );
+  const hasBranchChartItems = branchChartItems.length > 0;
 
   return (
     <div className="section-stack">
@@ -409,10 +368,10 @@ export default async function AdminDashboardPage({ searchParams }) {
             </div>
           </div>
 
-          {branchChartItems.length === 0 ? (
-            <div className="empty-state">선택한 기간의 문서가 없습니다.</div>
+          {!hasBranchChartItems ? (
+            <div className="empty-state">선택한 기간의 서명 완료 문서가 없습니다.</div>
           ) : (
-            <DashboardBarChart items={branchChartItems} maxValue={maxChartValue} />
+            <DashboardBarChart items={branchChartItems} />
           )}
         </section>
       ) : null}
@@ -441,19 +400,14 @@ export default async function AdminDashboardPage({ searchParams }) {
           </div>
         </div>
 
-        {trendChart.points.length === 0 ? (
-          <div className="empty-state">선택한 기간의 서명 완료 문서가 없습니다.</div>
-        ) : (
+        {trendItems.length > 0 ? (
           <DashboardLineChart
             branchName={trendBranchName}
             totalCount={trendItems.reduce((sum, item) => sum + item.count, 0)}
-            chartWidth={CHART_WIDTH}
-            chartHeight={CHART_HEIGHT}
-            chartPaddingX={CHART_PADDING_X}
-            chartPaddingTop={CHART_PADDING_TOP}
-            chartPaddingBottom={CHART_PADDING_BOTTOM}
-            chart={trendChart}
+            items={trendItems}
           />
+        ) : (
+          <div className="empty-state">선택한 기간의 서명 완료 문서가 없습니다.</div>
         )}
       </section>
 

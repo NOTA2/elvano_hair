@@ -4,6 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { startGlobalLoading } from "@/components/GlobalLoadingOverlay";
 import LazyRichTextEditor from "@/components/LazyRichTextEditor";
 import SelectField from "@/components/SelectField";
+import {
+  formatKoreanPhoneNumber,
+  isValidKoreanMobilePhone
+} from "@/lib/phone";
 import { normalizeTemplateContent } from "@/lib/templateContent";
 
 const KST_DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
@@ -35,6 +39,8 @@ export default function AdminDocumentIssueForm({
   const isEditMode = mode === "edit";
   const submitTimerRef = useRef(null);
   const skipInitialTemplateSeedRef = useRef(isEditMode);
+  const confirmDialogRef = useRef(null);
+  const pendingSubmitFormRef = useRef(null);
 
   const branchOptions = useMemo(() => {
     const next = [...branches];
@@ -133,6 +139,7 @@ export default function AdminDocumentIssueForm({
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeLoadingStepIndex, setActiveLoadingStepIndex] = useState(0);
+  const [confirmPayload, setConfirmPayload] = useState(null);
 
   const designersByBranch = useMemo(() => {
     const next = new Map();
@@ -261,11 +268,33 @@ export default function AdminDocumentIssueForm({
 
   useEffect(() => {
     return () => {
+      confirmDialogRef.current?.close();
+
       if (submitTimerRef.current) {
         window.clearTimeout(submitTimerRef.current);
       }
     };
   }, []);
+
+  useEffect(() => {
+    const dialog = confirmDialogRef.current;
+
+    if (!dialog) {
+      return;
+    }
+
+    if (confirmPayload) {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+
+      return;
+    }
+
+    if (dialog.open) {
+      dialog.close();
+    }
+  }, [confirmPayload]);
 
   function clearError(fieldName) {
     setErrors((current) => {
@@ -282,7 +311,7 @@ export default function AdminDocumentIssueForm({
   function validateForm(formData) {
     const nextErrors = {};
     const customerName = String(formData.get("customer_name") || "").trim();
-    const recipientPhone = String(formData.get("recipient_phone") || "").replace(/\D/g, "");
+    const recipientPhone = String(formData.get("recipient_phone") || "").trim();
     const documentTitleValue = String(formData.get("document_title") || "").trim();
 
     if (!branchLocked && !selectedBranchId) {
@@ -299,8 +328,8 @@ export default function AdminDocumentIssueForm({
 
     if (!recipientPhone) {
       nextErrors.recipient_phone = "휴대폰번호를 입력해야 합니다.";
-    } else if (recipientPhone.length < 8) {
-      nextErrors.recipient_phone = "휴대폰번호를 정확히 입력해야 합니다.";
+    } else if (!isValidKoreanMobilePhone(recipientPhone)) {
+      nextErrors.recipient_phone = "한국 휴대폰번호를 정확히 입력해야 합니다.";
     }
 
     if (!documentDate) {
@@ -322,6 +351,51 @@ export default function AdminDocumentIssueForm({
     return nextErrors;
   }
 
+  function closeConfirmDialog() {
+    pendingSubmitFormRef.current = null;
+    setConfirmPayload(null);
+  }
+
+  function beginSubmit(form) {
+    if (!form) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setActiveLoadingStepIndex(0);
+    startGlobalLoading({
+      ...loadingState,
+      toastDelayMs: 320,
+      showCard: false
+    });
+
+    submitTimerRef.current = window.setTimeout(() => {
+      form.submit();
+    }, 48);
+  }
+
+  function openConfirmDialog(form, formData) {
+    pendingSubmitFormRef.current = form;
+    setConfirmPayload({
+      customerName: String(formData.get("customer_name") || "").trim() || "-",
+      recipientPhone: formatKoreanPhoneNumber(formData.get("recipient_phone")),
+      documentTitle: String(formData.get("document_title") || "").trim() || "-"
+    });
+  }
+
+  function handleConfirmSubmit() {
+    const form = pendingSubmitFormRef.current;
+
+    closeConfirmDialog();
+    beginSubmit(form);
+  }
+
+  function handleConfirmBackdropClick(event) {
+    if (event.target === confirmDialogRef.current) {
+      closeConfirmDialog();
+    }
+  }
+
   const currentLoadingStep =
     loadingState.steps[
       Math.min(activeLoadingStepIndex, Math.max(loadingState.steps.length - 1, 0))
@@ -334,342 +408,386 @@ export default function AdminDocumentIssueForm({
       : 0;
 
   return (
-    <form
-      className="issue-form"
-      action="/api/admin/documents"
-      method="post"
-      data-loading-title={loadingState.title}
-      data-loading-copy={loadingState.copy}
-      data-loading-steps={loadingStepsJson}
-      data-loading-step-interval={String(loadingState.stepIntervalMs)}
-      data-loading-toast-delay="320"
-      data-loading-card="hidden"
-      aria-busy={isSubmitting ? "true" : "false"}
-      onSubmit={(event) => {
-        const form = event.currentTarget;
-        const nextErrors = validateForm(new FormData(form));
+    <>
+      <form
+        className="issue-form"
+        action="/api/admin/documents"
+        method="post"
+        data-loading-title={loadingState.title}
+        data-loading-copy={loadingState.copy}
+        data-loading-steps={loadingStepsJson}
+        data-loading-step-interval={String(loadingState.stepIntervalMs)}
+        data-loading-toast-delay="320"
+        data-loading-card="hidden"
+        aria-busy={isSubmitting ? "true" : "false"}
+        onSubmit={(event) => {
+          const form = event.currentTarget;
+          const formData = new FormData(form);
+          const nextErrors = validateForm(formData);
 
-        if (Object.keys(nextErrors).length > 0) {
+          if (Object.keys(nextErrors).length > 0) {
+            event.preventDefault();
+            setErrors(nextErrors);
+            return;
+          }
+
+          if (isSubmitting) {
+            event.preventDefault();
+            return;
+          }
+
           event.preventDefault();
-          setErrors(nextErrors);
-          return;
-        }
+          setErrors({});
 
-        if (isSubmitting) {
-          event.preventDefault();
-          return;
-        }
+          if (!isEditMode) {
+            openConfirmDialog(form, formData);
+            return;
+          }
 
-        event.preventDefault();
-        setIsSubmitting(true);
-        setActiveLoadingStepIndex(0);
-        startGlobalLoading({
-          ...loadingState,
-          toastDelayMs: 320,
-          showCard: false
-        });
+          beginSubmit(form);
+        }}
+      >
+        <input type="hidden" name="intent" value={isEditMode ? "update" : "create"} />
+        {isEditMode ? (
+          <input type="hidden" name="token" value={initialDocument?.token || ""} />
+        ) : null}
 
-        submitTimerRef.current = window.setTimeout(() => {
-          form.submit();
-        }, 48);
-      }}
-    >
-      <input type="hidden" name="intent" value={isEditMode ? "update" : "create"} />
-      {isEditMode ? <input type="hidden" name="token" value={initialDocument?.token || ""} /> : null}
-
-      {isSubmitting ? (
-        <div className="issue-form-loading-overlay" role="status" aria-live="polite">
-          <div className="issue-form-loading-card">
-            <div className="issue-form-loading-meta">
-              {Math.min(activeLoadingStepIndex + 1, loadingState.steps.length)}/
-              {loadingState.steps.length} 단계
-            </div>
-            <div className="issue-form-loading-title">
-              {currentLoadingStep?.label || loadingState.title}
-            </div>
-            <div className="issue-form-loading-copy">
-              {currentLoadingStep?.description || loadingState.copy}
-            </div>
-            <div className="issue-form-loading-progress" aria-hidden="true">
-              <span style={{ transform: `scaleX(${loadingProgress / 100})` }} />
-            </div>
-            <div className="issue-form-loading-step-list">
-              {loadingState.steps.map((step, index) => (
-                <div
-                  key={step.label}
-                  className={`issue-form-loading-step ${
-                    index === activeLoadingStepIndex
-                      ? "active"
-                      : index < activeLoadingStepIndex
-                        ? "done"
-                        : ""
-                  }`}
-                >
-                  {step.label}
-                </div>
-              ))}
+        {isSubmitting ? (
+          <div className="issue-form-loading-overlay" role="status" aria-live="polite">
+            <div className="issue-form-loading-card">
+              <div className="issue-form-loading-meta">
+                {Math.min(activeLoadingStepIndex + 1, loadingState.steps.length)}/
+                {loadingState.steps.length} 단계
+              </div>
+              <div className="issue-form-loading-title">
+                {currentLoadingStep?.label || loadingState.title}
+              </div>
+              <div className="issue-form-loading-copy">
+                {currentLoadingStep?.description || loadingState.copy}
+              </div>
+              <div className="issue-form-loading-progress" aria-hidden="true">
+                <span style={{ transform: `scaleX(${loadingProgress / 100})` }} />
+              </div>
+              <div className="issue-form-loading-step-list">
+                {loadingState.steps.map((step, index) => (
+                  <div
+                    key={step.label}
+                    className={`issue-form-loading-step ${
+                      index === activeLoadingStepIndex
+                        ? "active"
+                        : index < activeLoadingStepIndex
+                          ? "done"
+                          : ""
+                    }`}
+                  >
+                    {step.label}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      <div className="issue-form-layout">
-        <div className="issue-form-row issue-form-row-2">
-          {branchLocked ? (
-            <>
-              <input type="hidden" name="branch_id" value={selectedBranchId} />
+        <div className="issue-form-layout">
+          <div className="issue-form-row issue-form-row-2">
+            {branchLocked ? (
+              <>
+                <input type="hidden" name="branch_id" value={selectedBranchId} />
+                <label className="field">
+                  <span className="field-label">지점</span>
+                  <input value={initialBranchName} disabled readOnly />
+                </label>
+              </>
+            ) : (
               <label className="field">
                 <span className="field-label">지점</span>
-                <input value={initialBranchName} disabled readOnly />
+                <SelectField
+                  name="branch_id"
+                  value={selectedBranchId}
+                  onChange={(event) => {
+                    setSelectedBranchId(String(event.target.value || ""));
+                    clearError("branch_id");
+                  }}
+                  invalid={Boolean(errors.branch_id)}
+                  required
+                >
+                  <option value="">선택</option>
+                  {branchOptions.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {labelWithInactiveSuffix(branch, branch.name)}
+                    </option>
+                  ))}
+                </SelectField>
+                {errors.branch_id ? (
+                  <span className="field-error-text">{errors.branch_id}</span>
+                ) : null}
               </label>
-            </>
-          ) : (
+            )}
+
             <label className="field">
-              <span className="field-label">지점</span>
+              <span className="field-label">담당 디자이너</span>
               <SelectField
-                name="branch_id"
-                value={selectedBranchId}
+                name="designer_id"
+                value={selectedDesignerId}
                 onChange={(event) => {
-                  setSelectedBranchId(String(event.target.value || ""));
-                  clearError("branch_id");
+                  setSelectedDesignerId(String(event.target.value || ""));
+                  clearError("designer_id");
                 }}
-                invalid={Boolean(errors.branch_id)}
+                disabled={!selectedBranchId}
+                invalid={Boolean(errors.designer_id)}
                 required
               >
-                <option value="">선택</option>
-                {branchOptions.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {labelWithInactiveSuffix(branch, branch.name)}
+                <option value="">
+                  {selectedBranchId ? "선택" : "지점을 먼저 선택하세요"}
+                </option>
+                {filteredDesigners.map((designer) => (
+                  <option key={designer.id} value={designer.id}>
+                    {labelWithInactiveSuffix(designer, designer.name)}
                   </option>
                 ))}
               </SelectField>
-              {errors.branch_id ? (
-                <span className="field-error-text">{errors.branch_id}</span>
+              {errors.designer_id ? (
+                <span className="field-error-text">{errors.designer_id}</span>
               ) : null}
             </label>
+          </div>
+
+          <div className="issue-form-row issue-form-row-3">
+            <label className="field">
+              <span className="field-label">고객 이름</span>
+              <input
+                name="customer_name"
+                defaultValue={initialDocument?.customer_name || ""}
+                className={errors.customer_name ? "input-error" : ""}
+                onChange={() => clearError("customer_name")}
+                required
+              />
+              {errors.customer_name ? (
+                <span className="field-error-text">{errors.customer_name}</span>
+              ) : null}
+            </label>
+
+            <label className="field">
+              <span className="field-label">휴대폰번호</span>
+              <input
+                name="recipient_phone"
+                inputMode="tel"
+                placeholder="01012345678"
+                defaultValue={initialDocument?.recipient_phone || ""}
+                className={errors.recipient_phone ? "input-error" : ""}
+                onChange={() => clearError("recipient_phone")}
+                required
+              />
+              {errors.recipient_phone ? (
+                <span className="field-error-text">{errors.recipient_phone}</span>
+              ) : null}
+            </label>
+
+            <label className="field">
+              <span className="field-label">날짜</span>
+              <input
+                type="date"
+                name="document_date"
+                value={documentDate}
+                className={errors.document_date ? "input-error" : ""}
+                onChange={(event) => {
+                  setDocumentDate(event.target.value);
+                  clearError("document_date");
+                }}
+                required
+              />
+              {errors.document_date ? (
+                <span className="field-error-text">{errors.document_date}</span>
+              ) : null}
+            </label>
+          </div>
+
+          {isEditMode ? (
+            <div className="issue-form-row issue-form-row-2">
+              <label className="field">
+                <span className="field-label">문서 템플릿</span>
+                <input value={currentTemplateName} disabled readOnly />
+                <input type="hidden" name="template_id" value={selectedTemplateId} />
+                <span className="field-help">
+                  이미 발급된 문서는 현재 템플릿 연결을 유지하고 본문을 직접 수정합니다.
+                </span>
+              </label>
+
+              <label className="field">
+                <span className="field-label">알림톡 템플릿</span>
+                <SelectField
+                  name="notification_template_id"
+                  value={selectedNotificationTemplateId}
+                  onChange={(event) => {
+                    setSelectedNotificationTemplateId(String(event.target.value || ""));
+                    clearError("notification_template_id");
+                  }}
+                  invalid={Boolean(errors.notification_template_id)}
+                >
+                  <option value="">선택 안 함</option>
+                  {notificationTemplateOptions.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {labelWithInactiveSuffix(
+                        template,
+                        `${template.template_name} ${
+                          template.template_code ? `(${template.template_code})` : ""
+                        }`.trim()
+                      )}
+                    </option>
+                  ))}
+                </SelectField>
+                {errors.notification_template_id ? (
+                  <span className="field-error-text">{errors.notification_template_id}</span>
+                ) : null}
+                <span className="field-help">
+                  저장 후 필요하면 목록의 재발송 버튼으로 알림톡을 다시 보낼 수 있습니다.
+                </span>
+              </label>
+            </div>
+          ) : (
+            <div className="issue-form-row issue-form-row-2">
+              <label className="field">
+                <span className="field-label">문서 템플릿</span>
+                <SelectField
+                  name="template_id"
+                  value={selectedTemplateId}
+                  onChange={(event) => {
+                    setSelectedTemplateId(String(event.target.value || ""));
+                    clearError("template_id");
+                  }}
+                  invalid={Boolean(errors.template_id)}
+                  required
+                >
+                  <option value="">선택</option>
+                  {documentTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                    </option>
+                  ))}
+                </SelectField>
+                {errors.template_id ? (
+                  <span className="field-error-text">{errors.template_id}</span>
+                ) : null}
+              </label>
+
+              <label className="field">
+                <span className="field-label">알림톡 템플릿</span>
+                <SelectField
+                  name="notification_template_id"
+                  value={selectedNotificationTemplateId}
+                  onChange={(event) => {
+                    setSelectedNotificationTemplateId(String(event.target.value || ""));
+                    clearError("notification_template_id");
+                  }}
+                  invalid={Boolean(errors.notification_template_id)}
+                >
+                  <option value="">선택</option>
+                  {notificationTemplateOptions.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {labelWithInactiveSuffix(
+                        template,
+                        `${template.template_name} (${template.template_code})`
+                      )}
+                    </option>
+                  ))}
+                </SelectField>
+                {errors.notification_template_id ? (
+                  <span className="field-error-text">{errors.notification_template_id}</span>
+                ) : null}
+                <span className="field-help">
+                  문서 발행 시 선택한 알림톡 템플릿으로 바로 발송합니다.
+                </span>
+              </label>
+            </div>
           )}
 
-          <label className="field">
-            <span className="field-label">담당 디자이너</span>
-            <SelectField
-              name="designer_id"
-              value={selectedDesignerId}
-              onChange={(event) => {
-                setSelectedDesignerId(String(event.target.value || ""));
-                clearError("designer_id");
-              }}
-              disabled={!selectedBranchId}
-              invalid={Boolean(errors.designer_id)}
-              required
-            >
-              <option value="">
-                {selectedBranchId ? "선택" : "지점을 먼저 선택하세요"}
-              </option>
-              {filteredDesigners.map((designer) => (
-                <option key={designer.id} value={designer.id}>
-                  {labelWithInactiveSuffix(designer, designer.name)}
-                </option>
-              ))}
-            </SelectField>
-            {errors.designer_id ? (
-              <span className="field-error-text">{errors.designer_id}</span>
-            ) : null}
-          </label>
-        </div>
-
-        <div className="issue-form-row issue-form-row-3">
-          <label className="field">
-            <span className="field-label">고객 이름</span>
-            <input
-              name="customer_name"
-              defaultValue={initialDocument?.customer_name || ""}
-              className={errors.customer_name ? "input-error" : ""}
-              onChange={() => clearError("customer_name")}
-              required
-            />
-            {errors.customer_name ? (
-              <span className="field-error-text">{errors.customer_name}</span>
-            ) : null}
-          </label>
-
-          <label className="field">
-            <span className="field-label">휴대폰번호</span>
-            <input
-              name="recipient_phone"
-              inputMode="tel"
-              placeholder="01012345678"
-              defaultValue={initialDocument?.recipient_phone || ""}
-              className={errors.recipient_phone ? "input-error" : ""}
-              onChange={() => clearError("recipient_phone")}
-              required
-            />
-            {errors.recipient_phone ? (
-              <span className="field-error-text">{errors.recipient_phone}</span>
-            ) : null}
-          </label>
-
-          <label className="field">
-            <span className="field-label">날짜</span>
-            <input
-              type="date"
-              name="document_date"
-              value={documentDate}
-              className={errors.document_date ? "input-error" : ""}
-              onChange={(event) => {
-                setDocumentDate(event.target.value);
-                clearError("document_date");
-              }}
-              required
-            />
-            {errors.document_date ? (
-              <span className="field-error-text">{errors.document_date}</span>
-            ) : null}
-          </label>
-        </div>
-
-        {isEditMode ? (
-          <div className="issue-form-row issue-form-row-2">
+          <div className="issue-form-row issue-form-row-1">
             <label className="field">
-              <span className="field-label">문서 템플릿</span>
-              <input value={currentTemplateName} disabled readOnly />
-              <input type="hidden" name="template_id" value={selectedTemplateId} />
-              <span className="field-help">
-                이미 발급된 문서는 현재 템플릿 연결을 유지하고 본문을 직접 수정합니다.
-              </span>
-            </label>
-
-            <label className="field">
-              <span className="field-label">알림톡 템플릿</span>
-              <SelectField
-                name="notification_template_id"
-                value={selectedNotificationTemplateId}
+              <span className="field-label">문서 제목</span>
+              <input
+                name="document_title"
+                placeholder="고객에게 표시될 긴 문서 제목을 입력하세요."
+                value={documentTitle}
+                className={errors.document_title ? "input-error" : ""}
                 onChange={(event) => {
-                  setSelectedNotificationTemplateId(String(event.target.value || ""));
-                  clearError("notification_template_id");
+                  setDocumentTitle(event.target.value);
+                  clearError("document_title");
                 }}
-                invalid={Boolean(errors.notification_template_id)}
-              >
-                <option value="">선택 안 함</option>
-                {notificationTemplateOptions.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {labelWithInactiveSuffix(
-                      template,
-                      `${template.template_name} ${
-                        template.template_code ? `(${template.template_code})` : ""
-                      }`.trim()
-                    )}
-                  </option>
-                ))}
-              </SelectField>
-              {errors.notification_template_id ? (
-                <span className="field-error-text">{errors.notification_template_id}</span>
-              ) : null}
-              <span className="field-help">
-                저장 후 필요하면 목록의 재발송 버튼으로 알림톡을 다시 보낼 수 있습니다.
-              </span>
-            </label>
-          </div>
-        ) : (
-          <div className="issue-form-row issue-form-row-2">
-            <label className="field">
-              <span className="field-label">문서 템플릿</span>
-              <SelectField
-                name="template_id"
-                value={selectedTemplateId}
-                onChange={(event) => {
-                  setSelectedTemplateId(String(event.target.value || ""));
-                  clearError("template_id");
-                }}
-                invalid={Boolean(errors.template_id)}
                 required
-              >
-                <option value="">선택</option>
-                {documentTemplates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </SelectField>
-              {errors.template_id ? (
-                <span className="field-error-text">{errors.template_id}</span>
+              />
+              {errors.document_title ? (
+                <span className="field-error-text">{errors.document_title}</span>
               ) : null}
             </label>
-
-            <label className="field">
-              <span className="field-label">알림톡 템플릿</span>
-              <SelectField
-                name="notification_template_id"
-                value={selectedNotificationTemplateId}
-                onChange={(event) => {
-                  setSelectedNotificationTemplateId(String(event.target.value || ""));
-                  clearError("notification_template_id");
-                }}
-                invalid={Boolean(errors.notification_template_id)}
-              >
-                <option value="">선택</option>
-                {notificationTemplateOptions.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {labelWithInactiveSuffix(
-                      template,
-                      `${template.template_name} (${template.template_code})`
-                    )}
-                  </option>
-                ))}
-              </SelectField>
-              {errors.notification_template_id ? (
-                <span className="field-error-text">{errors.notification_template_id}</span>
-              ) : null}
-              <span className="field-help">
-                문서 발행 시 선택한 알림톡 템플릿으로 바로 발송합니다.
-              </span>
-            </label>
           </div>
-        )}
 
-        <div className="issue-form-row issue-form-row-1">
-          <label className="field">
-            <span className="field-label">문서 제목</span>
-            <input
-              name="document_title"
-              placeholder="고객에게 표시될 긴 문서 제목을 입력하세요."
-              value={documentTitle}
-              className={errors.document_title ? "input-error" : ""}
-              onChange={(event) => {
-                setDocumentTitle(event.target.value);
-                clearError("document_title");
-              }}
-              required
-            />
-            {errors.document_title ? (
-              <span className="field-error-text">{errors.document_title}</span>
-            ) : null}
-          </label>
-        </div>
-
-        <div className="issue-form-row issue-form-row-1">
-          <div className="field">
-            <span className="field-label">본문</span>
-            <LazyRichTextEditor
-              name="content"
-              defaultValue={editorContent}
-              placeholder={
-                isEditMode
-                  ? "현재 발급된 문서 본문을 수정할 수 있습니다."
-                  : "문서 템플릿을 선택하면 본문이 여기에 불러와집니다."
-              }
-            />
+          <div className="issue-form-row issue-form-row-1">
+            <div className="field">
+              <span className="field-label">본문</span>
+              <LazyRichTextEditor
+                name="content"
+                defaultValue={editorContent}
+                placeholder={
+                  isEditMode
+                    ? "현재 발급된 문서 본문을 수정할 수 있습니다."
+                    : "문서 템플릿을 선택하면 본문이 여기에 불러와집니다."
+                }
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="form-actions admin-form-actions">
-        <button type="submit">{isEditMode ? "문서 저장" : "문서 생성"}</button>
-        <span className="pill-note">
-          {isEditMode
-            ? "서명 전 문서는 저장 후 바로 반영됩니다. 저장 후 필요하면 재발송 버튼으로 알림톡을 다시 보낼 수 있습니다."
-            : "문서 발행 시 선택한 알림톡 템플릿으로 Bizgo 발송을 바로 시도합니다."}
-        </span>
-      </div>
-    </form>
+        <div className="form-actions admin-form-actions">
+          <button type="submit">{isEditMode ? "문서 저장" : "문서 생성"}</button>
+          <span className="pill-note">
+            {isEditMode
+              ? "서명 전 문서는 저장 후 바로 반영됩니다. 저장 후 필요하면 재발송 버튼으로 알림톡을 다시 보낼 수 있습니다."
+              : "문서 발행 시 선택한 알림톡 템플릿으로 Bizgo 발송을 바로 시도합니다."}
+          </span>
+        </div>
+      </form>
+
+      <dialog
+        ref={confirmDialogRef}
+        className="issue-form-confirm-dialog"
+        onCancel={(event) => {
+          event.preventDefault();
+          closeConfirmDialog();
+        }}
+        onClick={handleConfirmBackdropClick}
+      >
+        <div className="issue-form-confirm-card">
+          <div className="issue-form-confirm-badge">발급 전 확인</div>
+          <div className="issue-form-confirm-title">고객 휴대폰번호를 다시 확인해 주세요</div>
+          <div className="issue-form-confirm-copy">
+            문서 링크와 알림톡이 아래 번호로 발송됩니다. 번호가 맞다면 그대로 발급하면 됩니다.
+          </div>
+
+          <div className="issue-form-confirm-summary">
+            <div className="issue-form-confirm-item">
+              <span>고객명</span>
+              <strong>{confirmPayload?.customerName || "-"}</strong>
+            </div>
+            <div className="issue-form-confirm-item">
+              <span>휴대폰번호</span>
+              <strong>{confirmPayload?.recipientPhone || "-"}</strong>
+            </div>
+            <div className="issue-form-confirm-item">
+              <span>문서 제목</span>
+              <strong>{confirmPayload?.documentTitle || "-"}</strong>
+            </div>
+          </div>
+
+          <div className="issue-form-confirm-actions">
+            <button type="button" className="secondary" onClick={closeConfirmDialog}>
+              취소
+            </button>
+            <button type="button" onClick={handleConfirmSubmit}>
+              이대로 발급
+            </button>
+          </div>
+        </div>
+      </dialog>
+    </>
   );
 }
