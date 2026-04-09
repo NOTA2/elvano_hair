@@ -30,7 +30,6 @@ const MASTER_SORT_OPTIONS = [
   { value: "created_at", label: "생성일" },
   { value: "signed_at", label: "서명일" },
   { value: "document_title", label: "문서 제목" },
-  { value: "customer_name", label: "고객명" },
   { value: "branch_name", label: "지점" },
   { value: "status", label: "상태" }
 ];
@@ -87,7 +86,10 @@ export default async function AdminDocumentsPage({ searchParams }) {
   );
   const currentPage = parsePage(resolvedSearchParams);
   const sortOptions = integratedMaster ? MASTER_SORT_OPTIONS : BRANCH_SORT_OPTIONS;
-  const sortKey = parseSort(resolvedSearchParams, "sort", "created_at");
+  const requestedSortKey = parseSort(resolvedSearchParams, "sort", "created_at");
+  const sortKey = sortOptions.some((option) => option.value === requestedSortKey)
+    ? requestedSortKey
+    : "created_at";
   const direction = parseDirection(resolvedSearchParams, "direction", "desc");
   const keyword = parseKeyword(resolvedSearchParams);
   const requestedBranchId = Number(resolvedSearchParams.branchId);
