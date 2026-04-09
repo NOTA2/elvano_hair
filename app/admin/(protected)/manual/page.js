@@ -3,11 +3,7 @@ import AdminSectionIntro from "@/components/AdminSectionIntro";
 import ReadableText from "@/components/ReadableText";
 import { requireAdminSession } from "@/lib/auth";
 import { TEMPLATE_VARIABLES } from "@/lib/templateVariables";
-import {
-  ADMIN_ROLE,
-  BRANCH_MASTER_ROLE,
-  INTEGRATED_MASTER_ROLE
-} from "@/lib/roles";
+import { ADMIN_ROLE, INTEGRATED_MASTER_ROLE } from "@/lib/roles";
 
 const BIZGO_TEMPLATE_CONSOLE_URL =
   "https://www.bizgo.io/console/team/2815/kakao/template/alimtalk";
@@ -213,9 +209,7 @@ function StepAction({ step, canManageSetup }) {
 export default async function AdminManualPage() {
   const session = await requireAdminSession();
   const isGeneralAdmin = session.role === ADMIN_ROLE;
-  const canManageSetup =
-    session.role === INTEGRATED_MASTER_ROLE ||
-    session.role === BRANCH_MASTER_ROLE;
+  const canManageSetup = session.role === INTEGRATED_MASTER_ROLE;
 
   return (
     <div className="section-stack">
@@ -267,8 +261,8 @@ export default async function AdminManualPage() {
               <div className="record-card">
                 <div className="record-title">미리 준비되어 있어야 하는 것</div>
                 <ReadableText as="div" className="record-meta">
-                  지점, 디자이너, 문서 템플릿, 알림톡 템플릿은 통합 마스터나 지점
-                  마스터가 먼저 준비해 둡니다.
+                  지점, 디자이너, 문서 템플릿, 알림톡 템플릿은 통합 마스터가 먼저
+                  준비해 둡니다.
                 </ReadableText>
               </div>
               <div className="record-card">

@@ -4,9 +4,8 @@ import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
 import {
-  isBranchMaster,
   isIntegratedMaster,
-  requireBranchManagerSession
+  requireIntegratedMasterSession
 } from "@/lib/auth";
 import { MASTER_KAKAO_ID } from "@/lib/config";
 import {
@@ -24,7 +23,6 @@ import {
 } from "@/lib/pagination";
 import {
   ADMIN_ROLE,
-  BRANCH_MASTER_ROLE,
   INTEGRATED_MASTER_ROLE,
   ROLE_LABELS
 } from "@/lib/roles";
@@ -42,11 +40,7 @@ const USER_SORT_OPTIONS = [
 
 function roleOptionsForSession(session) {
   if (isIntegratedMaster(session)) {
-    return [INTEGRATED_MASTER_ROLE, BRANCH_MASTER_ROLE, ADMIN_ROLE];
-  }
-
-  if (isBranchMaster(session)) {
-    return [BRANCH_MASTER_ROLE, ADMIN_ROLE];
+    return [INTEGRATED_MASTER_ROLE, ADMIN_ROLE];
   }
 
   return [];
@@ -112,12 +106,10 @@ async function buildUsersPage({
 
 export default async function AdminUsersPage({ searchParams }) {
   const [session, resolvedSearchParams] = await Promise.all([
-    requireBranchManagerSession(),
+    requireIntegratedMasterSession(),
     searchParams
   ]);
   const viewerIsIntegratedMaster = isIntegratedMaster(session);
-  const viewerIsBranchMaster = isBranchMaster(session);
-  const branchId = viewerIsBranchMaster ? session.branch_id : undefined;
   const usersSort = parseSort(resolvedSearchParams, "usersSort", "updated_at");
   const usersDirection = parseDirection(
     resolvedSearchParams,
@@ -131,12 +123,11 @@ export default async function AdminUsersPage({ searchParams }) {
     DEFAULT_PAGE_SIZE
   );
   const usersCurrentPage = parsePage(resolvedSearchParams, "usersPage");
-  const [branches, branchMasterCount, usersPage] = await Promise.all([
-    listBranches({ activeOnly: true, branchId }),
-    countAdminUsers({ branchId, role: BRANCH_MASTER_ROLE }),
+  const [branches, usersPage] = await Promise.all([
+    listBranches({ activeOnly: true }),
     buildUsersPage({
       viewerIsIntegratedMaster,
-      branchId,
+      branchId: undefined,
       currentPage: usersCurrentPage,
       pageSize: usersPageSize,
       sortKey: usersSort,
@@ -156,7 +147,6 @@ export default async function AdminUsersPage({ searchParams }) {
           <div className="panel-toolbar-primary">
             <div className="panel-kpi-row">
               <span className="metric-pill">전체 {usersPage.totalCount}</span>
-              <span className="metric-pill">지점 마스터 {branchMasterCount}</span>
             </div>
           </div>
           <div className="panel-actions">
@@ -213,19 +203,30 @@ export default async function AdminUsersPage({ searchParams }) {
                             initialBranchId={user.branch_id || ""}
                             branches={branches}
                             availableRoles={allowedRoles}
-                            fixedBranchId={viewerIsBranchMaster ? session.branch_id : ""}
-                            fixedBranchName={viewerIsBranchMaster ? session.branch_name || "" : ""}
                             submitLabel="변경 저장"
                           />
                         </ModalDialog>
                         {viewerIsIntegratedMaster ? (
-                          <form action="/api/admin/admin-users" method="post">
-                            <input type="hidden" name="intent" value="delete" />
-                            <input type="hidden" name="id" value={user.id} />
-                            <button type="submit" className="danger">
-                              권한 삭제
-                            </button>
-                          </form>
+                          <ModalDialog
+                            title={`${user.nickname || user.kakao_user_id} 권한 삭제`}
+                            description="정말 이 관리자 권한을 삭제하시겠습니까? 삭제 후에는 다시 권한을 부여해야 접근할 수 있습니다."
+                            triggerLabel="권한 삭제"
+                            triggerClassName="danger"
+                          >
+                            <form
+                              action="/api/admin/admin-users"
+                              method="post"
+                              className="modal-danger-zone"
+                            >
+                              <input type="hidden" name="intent" value="delete" />
+                              <input type="hidden" name="id" value={user.id} />
+                              <div className="form-actions admin-form-actions">
+                                <button type="submit" className="danger">
+                                  네, 삭제합니다
+                                </button>
+                              </div>
+                            </form>
+                          </ModalDialog>
                         ) : null}
                       </>
                     )}

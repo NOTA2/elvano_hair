@@ -24,7 +24,7 @@ export default async function AdminLoginPage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
 
   if (session) {
-    redirect("/admin");
+    redirect("/admin/documents");
   }
 
   const errorMessage =

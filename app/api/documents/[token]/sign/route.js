@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { getDocumentByToken, signDocument } from "@/lib/db";
-import { serializePublicDocument } from "@/lib/documents";
+import { isDocumentExpired, serializePublicDocument } from "@/lib/documents";
 import { SignatureStorageError, uploadDocumentSignatureFile } from "@/lib/signatures";
 
 export async function POST(request, { params }) {
@@ -23,6 +23,13 @@ export async function POST(request, { params }) {
 
   if (document.status === "signed") {
     return Response.json({ document: serializePublicDocument(document) });
+  }
+
+  if (isDocumentExpired(document)) {
+    return Response.json(
+      { error: "서명 기한이 지난 문서입니다. 문서 내용만 확인할 수 있습니다." },
+      { status: 410 }
+    );
   }
 
   const contentType = request.headers.get("content-type") || "";

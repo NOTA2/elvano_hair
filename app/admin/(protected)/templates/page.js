@@ -92,6 +92,7 @@ export default async function AdminTemplatesPage({ searchParams }) {
               title="문서 템플릿 추가"
               triggerLabel="템플릿 추가"
               size="wide"
+              closeOnBackdrop={false}
             >
               <form action="/api/admin/templates" method="post">
                 <input type="hidden" name="intent" value="create" />
@@ -147,6 +148,7 @@ export default async function AdminTemplatesPage({ searchParams }) {
                       }
                       triggerLabel="수정"
                       size="wide"
+                      closeOnBackdrop={false}
                     >
                       <form action="/api/admin/templates" method="post">
                         <input type="hidden" name="intent" value="update" />

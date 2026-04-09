@@ -4,9 +4,8 @@ import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
 import {
-  isBranchMaster,
   isIntegratedMaster,
-  requireBranchManagerSession
+  requireIntegratedMasterSession
 } from "@/lib/auth";
 import { MASTER_KAKAO_ID } from "@/lib/config";
 import {
@@ -23,7 +22,6 @@ import {
 } from "@/lib/pagination";
 import {
   ADMIN_ROLE,
-  BRANCH_MASTER_ROLE,
   INTEGRATED_MASTER_ROLE
 } from "@/lib/roles";
 
@@ -39,11 +37,7 @@ const PENDING_SORT_OPTIONS = [
 
 function roleOptionsForSession(session) {
   if (isIntegratedMaster(session)) {
-    return [INTEGRATED_MASTER_ROLE, BRANCH_MASTER_ROLE, ADMIN_ROLE];
-  }
-
-  if (isBranchMaster(session)) {
-    return [BRANCH_MASTER_ROLE, ADMIN_ROLE];
+    return [INTEGRATED_MASTER_ROLE, ADMIN_ROLE];
   }
 
   return [];
@@ -51,11 +45,9 @@ function roleOptionsForSession(session) {
 
 export default async function AccessRequestsPage({ searchParams }) {
   const [session, resolvedSearchParams] = await Promise.all([
-    requireBranchManagerSession(),
+    requireIntegratedMasterSession(),
     searchParams
   ]);
-  const viewerIsBranchMaster = isBranchMaster(session);
-  const branchId = viewerIsBranchMaster ? session.branch_id : undefined;
   const pendingSort = parseSort(
     resolvedSearchParams,
     "pendingSort",
@@ -74,7 +66,7 @@ export default async function AccessRequestsPage({ searchParams }) {
   );
   const pendingCurrentPage = parsePage(resolvedSearchParams, "pendingPage");
   const [branches, activeAdminKakaoIds] = await Promise.all([
-    listBranches({ activeOnly: true, branchId }),
+    listBranches({ activeOnly: true }),
     listAdminUserKakaoIds()
   ]);
   const pendingExcludedKakaoIds = Array.from(
@@ -146,8 +138,6 @@ export default async function AccessRequestsPage({ searchParams }) {
                         nickname={attempt.nickname || ""}
                         branches={branches}
                         availableRoles={allowedRoles}
-                        fixedBranchId={viewerIsBranchMaster ? session.branch_id : ""}
-                        fixedBranchName={viewerIsBranchMaster ? session.branch_name || "" : ""}
                         submitLabel="권한 저장"
                       />
                     </ModalDialog>

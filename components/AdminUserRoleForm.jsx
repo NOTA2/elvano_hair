@@ -4,7 +4,6 @@ import { useState } from "react";
 import SelectField from "@/components/SelectField";
 import {
   ADMIN_ROLE,
-  BRANCH_MASTER_ROLE,
   INTEGRATED_MASTER_ROLE,
   ROLE_LABELS
 } from "@/lib/roles";
@@ -18,7 +17,7 @@ export default function AdminUserRoleForm({
   initialRole = ADMIN_ROLE,
   initialBranchId = "",
   branches = [],
-  availableRoles = [ADMIN_ROLE, BRANCH_MASTER_ROLE],
+  availableRoles = [ADMIN_ROLE],
   fixedBranchId = "",
   fixedBranchName = "",
   submitLabel = "권한 저장"

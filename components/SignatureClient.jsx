@@ -39,15 +39,27 @@ function resizeCanvas(canvas) {
 }
 
 function bypassMessage(reason) {
-  if (reason === "admin") {
-    return "관리자 열람 모드입니다. 휴대폰 번호 확인 없이 전체 문서를 바로 확인할 수 있습니다.";
-  }
-
   if (reason === "signed") {
     return "서명이 완료된 문서입니다. 휴대폰 번호 입력 없이 최종 문서와 서명을 바로 확인할 수 있습니다.";
   }
 
+  if (reason === "admin") {
+    return "관리자 열람 모드입니다. 휴대폰 번호 확인 없이 전체 문서를 바로 확인할 수 있습니다.";
+  }
+
   return "";
+}
+
+function getReadOnlyNotice(document, bypassReason) {
+  if (document?.status === "signed") {
+    return bypassMessage("signed");
+  }
+
+  if (document?.is_expired) {
+    return "서명 기한이 지나 서명은 할 수 없습니다. 문서 내용만 확인할 수 있습니다.";
+  }
+
+  return bypassMessage(bypassReason);
 }
 
 function getSignatureBounds(canvas) {
@@ -164,7 +176,7 @@ export default function SignatureClient({
   const [step, setStep] = useState(initialDocument ? "document" : "verify");
   const [phoneLast4, setPhoneLast4] = useState("");
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState(bypassMessage(bypassReason));
+  const [notice, setNotice] = useState(getReadOnlyNotice(initialDocument, bypassReason));
   const [documentData, setDocumentData] = useState(initialDocument);
   const [isSaving, setIsSaving] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(initialReadOnly);
@@ -239,8 +251,8 @@ export default function SignatureClient({
     }
 
     setDocumentData(data.document);
-    setIsReadOnly(false);
-    setNotice("");
+    setIsReadOnly(Boolean(data.document?.is_expired));
+    setNotice(getReadOnlyNotice(data.document, null));
     setStep("document");
   }
 
