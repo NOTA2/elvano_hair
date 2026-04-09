@@ -57,7 +57,7 @@ export default function DocumentsSearchControls({
               setSearchKeyword(event.target.value);
             }}
             className="list-query-input"
-            placeholder="고객명 또는 전화번호"
+            placeholder="고객명 전체 또는 전화번호 전체/뒷자리 4자리"
           />
         </label>
         <div className="list-query-inline-actions">
