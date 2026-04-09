@@ -1,6 +1,7 @@
 import AdminSectionIntro from "@/components/AdminSectionIntro";
 import AlertOnMount from "@/components/AlertOnMount";
 import DocumentsListControls from "@/components/DocumentsListControls";
+import DocumentsSearchControls from "@/components/DocumentsSearchControls";
 import LazyAdminDocumentIssueForm from "@/components/LazyAdminDocumentIssueForm";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
@@ -67,6 +68,11 @@ function bizgoIndicator(status) {
     : { label: "❌", className: "failed" };
 }
 
+function parseKeyword(searchParams, key = "keyword") {
+  const value = searchParams?.[key];
+  return String(Array.isArray(value) ? value[0] : value || "").trim();
+}
+
 export default async function AdminDocumentsPage({ searchParams }) {
   const [session, resolvedSearchParams] = await Promise.all([
     requireAdminSession(),
@@ -83,6 +89,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
   const sortOptions = integratedMaster ? MASTER_SORT_OPTIONS : BRANCH_SORT_OPTIONS;
   const sortKey = parseSort(resolvedSearchParams, "sort", "created_at");
   const direction = parseDirection(resolvedSearchParams, "direction", "desc");
+  const keyword = parseKeyword(resolvedSearchParams);
   const requestedBranchId = Number(resolvedSearchParams.branchId);
   const branchId =
     integratedMaster && Number.isFinite(requestedBranchId) && requestedBranchId > 0
@@ -101,14 +108,15 @@ export default async function AdminDocumentsPage({ searchParams }) {
     }),
     listDocumentsPage({
       branchId,
+      searchTerm: keyword,
       page: currentPage,
       pageSize,
       sortKey,
       direction
     }),
-    countDocuments({ branchId, status: "signed" }),
-    countDocuments({ branchId, status: "pending" }),
-    countDocuments({ branchId, status: "failed" })
+    countDocuments({ branchId, status: "signed", searchTerm: keyword }),
+    countDocuments({ branchId, status: "pending", searchTerm: keyword }),
+    countDocuments({ branchId, status: "failed", searchTerm: keyword })
   ]);
   const baseUrl = getBaseUrl();
   const pageMessage = String(resolvedSearchParams?.message || "").trim();
@@ -298,6 +306,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
             />
           </>
         )}
+        <DocumentsSearchControls currentSearchTerm={keyword} />
       </section>
     </div>
   );

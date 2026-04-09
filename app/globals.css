@@ -1284,6 +1284,21 @@ td {
   flex-wrap: wrap;
 }
 
+.documents-search-controls {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  margin-top: 14px;
+}
+
+.documents-search-form {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .list-query-field {
   display: flex;
   align-items: center;
@@ -1291,6 +1306,33 @@ td {
   color: var(--admin-muted);
   font-size: 13px;
   font-weight: 700;
+}
+
+.documents-search-field {
+  min-width: 0;
+}
+
+.list-query-input {
+  min-width: 280px;
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--admin-ink);
+  font: inherit;
+}
+
+.list-query-input:focus {
+  outline: none;
+  border-color: rgba(161, 98, 7, 0.42);
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12);
+}
+
+.list-query-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .list-query-select {
@@ -3627,10 +3669,33 @@ td {
     gap: 12px;
   }
 
+  .documents-search-controls {
+    justify-content: stretch;
+  }
+
+  .documents-search-form {
+    display: grid;
+    gap: 12px;
+    width: 100%;
+  }
+
   .list-query-field {
     align-items: flex-start;
     flex-direction: column;
     gap: 6px;
+  }
+
+  .list-query-input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .list-query-inline-actions {
+    width: 100%;
+  }
+
+  .list-query-inline-actions > button {
+    flex: 1 1 0;
   }
 
   .list-query-select,
