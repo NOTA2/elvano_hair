@@ -1,7 +1,7 @@
 import SignatureClient from "@/components/SignatureClient";
 import { getCurrentSession } from "@/lib/auth";
 import { getDocumentByToken } from "@/lib/db";
-import { serializePublicDocument } from "@/lib/documents";
+import { isDocumentExpired, serializePublicDocument } from "@/lib/documents";
 import { notFound } from "next/navigation";
 
 export default async function PublicSignaturePage({ params }) {
@@ -15,6 +15,7 @@ export default async function PublicSignaturePage({ params }) {
   }
 
   const isAdminViewer = Boolean(session);
+  const isExpired = isDocumentExpired(document);
   const canBypassVerification = isAdminViewer || document.status === "signed";
   const bypassReason = isAdminViewer ? "admin" : document.status === "signed" ? "signed" : null;
 
@@ -22,7 +23,7 @@ export default async function PublicSignaturePage({ params }) {
     <SignatureClient
       token={token}
       initialDocument={canBypassVerification ? serializePublicDocument(document) : null}
-      initialReadOnly={canBypassVerification}
+      initialReadOnly={canBypassVerification || isExpired}
       bypassReason={bypassReason}
     />
   );

@@ -3,7 +3,7 @@ import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
 import SelectField from "@/components/SelectField";
-import { requireBranchManagerSession } from "@/lib/auth";
+import { requireIntegratedMasterSession } from "@/lib/auth";
 import { countBranches, listBranchesPage } from "@/lib/db";
 import {
   parseDirection,
@@ -11,7 +11,6 @@ import {
   parsePageSize,
   parseSort
 } from "@/lib/pagination";
-import { BRANCH_MASTER_ROLE, INTEGRATED_MASTER_ROLE } from "@/lib/roles";
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
@@ -28,12 +27,10 @@ const ERROR_MESSAGES = {
 };
 
 export default async function BranchesPage({ searchParams }) {
-  const [session, resolvedSearchParams] = await Promise.all([
-    requireBranchManagerSession(),
-    searchParams
+  const [resolvedSearchParams] = await Promise.all([
+    searchParams,
+    requireIntegratedMasterSession()
   ]);
-  const branchId = session.role === BRANCH_MASTER_ROLE ? session.branch_id : undefined;
-  const canCreateBranch = session.role === INTEGRATED_MASTER_ROLE;
   const pageSize = parsePageSize(
     resolvedSearchParams,
     "pageSize",
@@ -49,13 +46,12 @@ export default async function BranchesPage({ searchParams }) {
     "";
   const [branchesPage, activeBranches] = await Promise.all([
     listBranchesPage({
-      branchId,
       page: currentPage,
       pageSize,
       sortKey,
       direction
     }),
-    countBranches({ branchId, activeOnly: true })
+    countBranches({ activeOnly: true })
   ]);
 
   return (
@@ -79,54 +75,47 @@ export default async function BranchesPage({ searchParams }) {
               currentDirection={direction}
               sortOptions={SORT_OPTIONS}
             />
-            {canCreateBranch ? (
-              <ModalDialog
-                title="지점 추가"
-                triggerLabel="지점 추가"
-              >
-                <form action="/api/admin/branches" method="post">
-                  <input type="hidden" name="intent" value="create" />
-                  <div className="form-grid">
-                    <label className="field">
-                      <span className="field-label">지점명</span>
-                      <input name="name" required />
-                    </label>
-                    <label className="field">
-                      <span className="field-label">지점 전화번호</span>
-                      <input
-                        name="phone"
-                        placeholder="02-123-4567 / 031-1234-5678"
-                        inputMode="tel"
-                        pattern="0[0-9]{1,2}-[0-9]{3,4}-[0-9]{3,4}"
-                        title="지점 전화번호는 02-123-4567 또는 031-1234-5678 형식으로 입력해 주세요."
-                        required
-                      />
-                    </label>
-                    <label className="field">
-                      <span className="field-label">사용 여부</span>
-                      <SelectField name="is_active" defaultValue="1">
-                        <option value="1">사용</option>
-                        <option value="0">중지</option>
-                      </SelectField>
-                    </label>
-                    <label className="field-full">
-                      <span className="field-label">설명</span>
-                      <textarea name="description" />
-                    </label>
-                  </div>
-                  <div className="form-actions admin-form-actions">
-                    <button type="submit">지점 저장</button>
-                  </div>
-                </form>
-              </ModalDialog>
-            ) : null}
+            <ModalDialog
+              title="지점 추가"
+              triggerLabel="지점 추가"
+            >
+              <form action="/api/admin/branches" method="post">
+                <input type="hidden" name="intent" value="create" />
+                <div className="form-grid">
+                  <label className="field">
+                    <span className="field-label">지점명</span>
+                    <input name="name" required />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">지점 전화번호</span>
+                    <input
+                      name="phone"
+                      placeholder="02-123-4567 / 031-1234-5678"
+                      inputMode="tel"
+                      pattern="0[0-9]{1,2}-[0-9]{3,4}-[0-9]{3,4}"
+                      title="지점 전화번호는 02-123-4567 또는 031-1234-5678 형식으로 입력해 주세요."
+                      required
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">사용 여부</span>
+                    <SelectField name="is_active" defaultValue="1">
+                      <option value="1">사용</option>
+                      <option value="0">중지</option>
+                    </SelectField>
+                  </label>
+                  <label className="field-full">
+                    <span className="field-label">설명</span>
+                    <textarea name="description" />
+                  </label>
+                </div>
+                <div className="form-actions admin-form-actions">
+                  <button type="submit">지점 저장</button>
+                </div>
+              </form>
+            </ModalDialog>
           </div>
         </div>
-        {!canCreateBranch ? (
-          <div className="empty-state" style={{ marginBottom: 18 }}>
-            지점 마스터는 본인 지점의 정보만 수정할 수 있습니다.
-          </div>
-        ) : null}
         {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
 
         {branchesPage.items.length === 0 ? (
@@ -189,15 +178,26 @@ export default async function BranchesPage({ searchParams }) {
                           <button type="submit">지점 저장</button>
                         </div>
                       </form>
-                      {canCreateBranch ? (
-                        <form action="/api/admin/branches" method="post" className="modal-danger-zone">
-                          <input type="hidden" name="intent" value="delete" />
-                          <input type="hidden" name="id" value={branch.id} />
+                    </ModalDialog>
+                    <ModalDialog
+                      title={`${branch.name} 지점 삭제`}
+                      description="정말 이 지점을 삭제하시겠습니까? 삭제 후에는 연결된 설정과 목록에 영향이 있을 수 있습니다."
+                      triggerLabel="삭제"
+                      triggerClassName="danger"
+                    >
+                      <form
+                        action="/api/admin/branches"
+                        method="post"
+                        className="modal-danger-zone"
+                      >
+                        <input type="hidden" name="intent" value="delete" />
+                        <input type="hidden" name="id" value={branch.id} />
+                        <div className="form-actions admin-form-actions">
                           <button type="submit" className="danger">
-                            지점 삭제
+                            네, 삭제합니다
                           </button>
-                        </form>
-                      ) : null}
+                        </div>
+                      </form>
                     </ModalDialog>
                   </div>
                 </div>

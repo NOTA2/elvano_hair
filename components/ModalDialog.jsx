@@ -9,6 +9,7 @@ export default function ModalDialog({
   triggerLabel = "수정",
   triggerClassName = "secondary",
   size = "default",
+  closeOnBackdrop = true,
   lazy = true,
   children
 }) {
@@ -44,7 +45,7 @@ export default function ModalDialog({
   }
 
   function handleBackdropClick(event) {
-    if (event.target === dialogRef.current) {
+    if (closeOnBackdrop && event.target === dialogRef.current) {
       closeDialog();
     }
   }

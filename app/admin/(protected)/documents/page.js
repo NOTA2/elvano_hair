@@ -14,12 +14,14 @@ import {
   listBranches,
   listDocumentsPage
 } from "@/lib/db";
+import { isDocumentExpired } from "@/lib/documents";
 import {
   parseDirection,
   parsePage,
   parsePageSize,
   parseSort
 } from "@/lib/pagination";
+import { maskKoreanPhoneNumber } from "@/lib/phone";
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
@@ -63,24 +65,6 @@ function bizgoIndicator(status) {
   return status === "sent"
     ? { label: "✅", className: "success" }
     : { label: "❌", className: "failed" };
-}
-
-function formatPhoneNumber(value) {
-  const digits = String(value || "").replace(/\D/g, "");
-
-  if (!digits) {
-    return "-";
-  }
-
-  if (digits.length === 11) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-  }
-
-  if (digits.length === 10) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-
-  return String(value || "-");
 }
 
 export default async function AdminDocumentsPage({ searchParams }) {
@@ -164,6 +148,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
               title="서명 문서 발급"
               triggerLabel="문서 발급"
               size="wide"
+              closeOnBackdrop={false}
             >
               <LazyAdminDocumentIssueForm
                 branchLocked={!integratedMaster}
@@ -194,8 +179,12 @@ export default async function AdminDocumentsPage({ searchParams }) {
                 <tbody>
                   {documentsPage.items.map((document) => {
                     const bizgoIndicatorState = bizgoIndicator(document.bizgo_status);
-                    const isEditDisabled = document.status === "signed";
-                    const editDisabledReason = "서명 완료된 문서는 수정할 수 없습니다.";
+                    const isExpired = isDocumentExpired(document);
+                    const isEditDisabled = document.status === "signed" || isExpired;
+                    const editDisabledReason =
+                      document.status === "signed"
+                        ? "서명 완료된 문서는 수정할 수 없습니다."
+                        : "서명 기한이 지난 문서는 수정할 수 없습니다.";
 
                     return (
                       <tr key={document.id}>
@@ -215,7 +204,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
                       <td>
                         <div className="table-cell-title">{document.customer_name}</div>
                         <div className="table-cell-copy">
-                          {formatPhoneNumber(document.recipient_phone)}
+                          {maskKoreanPhoneNumber(document.recipient_phone)}
                         </div>
                       </td>
                       <td>
@@ -249,6 +238,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
                               triggerLabel="문서 수정"
                               triggerClassName="secondary table-action-button"
                               size="wide"
+                              closeOnBackdrop={false}
                             >
                               <LazyAdminDocumentIssueForm
                                 mode="edit"

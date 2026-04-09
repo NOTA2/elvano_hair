@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import {
   getRouteSession,
-  isBranchMaster,
   isIntegratedMaster
 } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/config";
@@ -19,16 +18,14 @@ function redirectBack(headerStore) {
 export async function POST(request) {
   const session = await getRouteSession();
 
-  if (!session || (!isIntegratedMaster(session) && !isBranchMaster(session))) {
+  if (!session || !isIntegratedMaster(session)) {
     return Response.redirect(`${getBaseUrl()}/admin/login`, 302);
   }
 
   const headerStore = await headers();
   const formData = await request.formData();
   const intent = formData.get("intent");
-  const resolvedBranchId = isBranchMaster(session)
-    ? Number(session.branch_id)
-    : Number(formData.get("branch_id"));
+  const resolvedBranchId = Number(formData.get("branch_id"));
 
   if (intent === "create") {
     if (!resolvedBranchId) {
@@ -50,10 +47,6 @@ export async function POST(request) {
       return redirectBack(headerStore);
     }
 
-    if (isBranchMaster(session) && Number(designer.branch_id) !== Number(session.branch_id)) {
-      return redirectBack(headerStore);
-    }
-
     await updateDesigner(Number(formData.get("id")), {
       branch_id: resolvedBranchId || designer.branch_id,
       name: formData.get("name"),
@@ -66,10 +59,6 @@ export async function POST(request) {
     const designer = await getDesignerById(Number(formData.get("id")));
 
     if (!designer) {
-      return redirectBack(headerStore);
-    }
-
-    if (isBranchMaster(session) && Number(designer.branch_id) !== Number(session.branch_id)) {
       return redirectBack(headerStore);
     }
 

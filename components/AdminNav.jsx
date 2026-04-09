@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import SelectField from "@/components/SelectField";
 import {
   ADMIN_ROLE,
-  BRANCH_MASTER_ROLE,
   INTEGRATED_MASTER_ROLE,
   ROLE_LABELS
 } from "@/lib/roles";
@@ -39,15 +38,10 @@ function getRoleEmoji(role) {
     return "👑";
   }
 
-  if (role === BRANCH_MASTER_ROLE) {
-    return "🏬";
-  }
-
   return "🧑‍💼";
 }
 
 const NAV_ICON_MAP = {
-  dashboard: "📊",
   branches: "🏬",
   templates: "📄",
   alimtalk: "💬",
@@ -70,17 +64,11 @@ function getNavGroups(session) {
   const groups = [
     {
       label: "Overview",
-      items: [
-        { href: "/admin", label: "대시보드", icon: "dashboard" },
-        { href: "/admin/documents", label: "서명 문서", icon: "documents" }
-      ]
+      items: [{ href: "/admin/documents", label: "서명 문서", icon: "documents" }]
     }
   ];
 
-  if (
-    session.role === INTEGRATED_MASTER_ROLE ||
-    session.role === BRANCH_MASTER_ROLE
-  ) {
+  if (session.role === INTEGRATED_MASTER_ROLE) {
     groups.push({
       label: "Manage",
       items: [
@@ -92,10 +80,7 @@ function getNavGroups(session) {
     });
   }
 
-  if (
-    session.role === INTEGRATED_MASTER_ROLE ||
-    session.role === BRANCH_MASTER_ROLE
-  ) {
+  if (session.role === INTEGRATED_MASTER_ROLE) {
     groups.push({
       label: "Access",
       items: [
@@ -141,8 +126,7 @@ export default function AdminNav({ session, branchOptions = [] }) {
   const [previewBranchId, setPreviewBranchId] = useState(
     session.branch_id ? String(session.branch_id) : String(branchOptions[0]?.id || "")
   );
-  const needsBranchSelection =
-    previewRole === BRANCH_MASTER_ROLE || previewRole === ADMIN_ROLE;
+  const needsBranchSelection = previewRole === ADMIN_ROLE;
 
   useEffect(() => {
     setIsPreviewOpen(false);
@@ -271,7 +255,6 @@ export default function AdminNav({ session, branchOptions = [] }) {
                       wrapperClassName="admin-preview-select"
                     >
                       <option value={INTEGRATED_MASTER_ROLE}>통합 마스터</option>
-                      <option value={BRANCH_MASTER_ROLE}>지점 마스터</option>
                       <option value={ADMIN_ROLE}>일반 어드민</option>
                     </SelectField>
                     {needsBranchSelection ? (

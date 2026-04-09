@@ -1,8 +1,6 @@
 import { headers } from "next/headers";
 import {
-  canManageBranchSettings,
   getRouteSession,
-  isBranchMaster,
   isIntegratedMaster
 } from "@/lib/auth";
 import { getBaseUrl, MASTER_KAKAO_ID } from "@/lib/config";
@@ -14,7 +12,6 @@ import {
 } from "@/lib/db";
 import {
   ADMIN_ROLE,
-  BRANCH_MASTER_ROLE,
   INTEGRATED_MASTER_ROLE
 } from "@/lib/roles";
 
@@ -24,7 +21,7 @@ function redirectBack(headerStore) {
 
 export async function POST(request) {
   const session = await getRouteSession();
-  if (!session || !canManageBranchSettings(session)) {
+  if (!session || !isIntegratedMaster(session)) {
     return Response.redirect(`${getBaseUrl()}/admin/login`, 302);
   }
   const headerStore = await headers();
@@ -38,11 +35,7 @@ export async function POST(request) {
       ? Number(formData.get("branch_id"))
       : null;
 
-    const allowedRoles = isIntegratedMaster(session)
-      ? [INTEGRATED_MASTER_ROLE, BRANCH_MASTER_ROLE, ADMIN_ROLE]
-      : isBranchMaster(session)
-        ? [BRANCH_MASTER_ROLE, ADMIN_ROLE]
-        : [];
+    const allowedRoles = [INTEGRATED_MASTER_ROLE, ADMIN_ROLE];
 
     if (!allowedRoles.includes(role)) {
       return redirectBack(headerStore);
@@ -51,9 +44,7 @@ export async function POST(request) {
     const branchId =
       role === INTEGRATED_MASTER_ROLE
         ? null
-        : isBranchMaster(session)
-          ? Number(session.branch_id)
-          : requestedBranchId;
+        : requestedBranchId;
 
     if (role !== INTEGRATED_MASTER_ROLE && !branchId) {
       return redirectBack(headerStore);
@@ -83,9 +74,6 @@ export async function POST(request) {
   }
 
   if (intent === "delete") {
-    if (!isIntegratedMaster(session)) {
-      return redirectBack(headerStore);
-    }
     await deleteAdminUser(Number(formData.get("id")));
   }
 

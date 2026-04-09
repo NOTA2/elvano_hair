@@ -1,10 +1,6 @@
 import { getCurrentSession, setAdminSessionPreview } from "@/lib/auth";
 import { getBaseUrl, MASTER_KAKAO_ID } from "@/lib/config";
-import {
-  ADMIN_ROLE,
-  BRANCH_MASTER_ROLE,
-  INTEGRATED_MASTER_ROLE
-} from "@/lib/roles";
+import { ADMIN_ROLE, INTEGRATED_MASTER_ROLE } from "@/lib/roles";
 
 function redirectToAdmin() {
   return Response.redirect(`${getBaseUrl()}/admin`, 302);
@@ -21,7 +17,7 @@ export async function POST(request) {
   const role = String(formData.get("preview_role") || "");
   const branchId = Number(formData.get("preview_branch_id") || 0);
 
-  if (![INTEGRATED_MASTER_ROLE, BRANCH_MASTER_ROLE, ADMIN_ROLE].includes(role)) {
+  if (![INTEGRATED_MASTER_ROLE, ADMIN_ROLE].includes(role)) {
     return redirectToAdmin();
   }
 

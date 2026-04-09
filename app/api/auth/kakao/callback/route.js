@@ -63,5 +63,5 @@ export async function GET(request) {
     branchId: access.branchId
   });
 
-  return Response.redirect(`${getBaseUrl()}/admin`, 302);
+  return Response.redirect(`${getBaseUrl()}/admin/documents`, 302);
 }

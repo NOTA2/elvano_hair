@@ -3,7 +3,7 @@ import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
 import SelectField from "@/components/SelectField";
-import { requireBranchManagerSession } from "@/lib/auth";
+import { requireIntegratedMasterSession } from "@/lib/auth";
 import {
   countDesigners,
   listBranches,
@@ -15,7 +15,6 @@ import {
   parsePageSize,
   parseSort
 } from "@/lib/pagination";
-import { BRANCH_MASTER_ROLE } from "@/lib/roles";
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
@@ -27,18 +26,6 @@ const SORT_OPTIONS = [
 ];
 
 function branchField(session, branches, defaultBranchId) {
-  if (session.role === BRANCH_MASTER_ROLE) {
-    return (
-      <>
-        <input type="hidden" name="branch_id" value={session.branch_id} />
-        <label className="field">
-          <span className="field-label">지점</span>
-          <input value={session.branch_name || ""} disabled readOnly />
-        </label>
-      </>
-    );
-  }
-
   return (
     <label className="field">
       <span className="field-label">지점</span>
@@ -56,10 +43,9 @@ function branchField(session, branches, defaultBranchId) {
 
 export default async function DesignersPage({ searchParams }) {
   const [session, resolvedSearchParams] = await Promise.all([
-    requireBranchManagerSession(),
+    requireIntegratedMasterSession(),
     searchParams
   ]);
-  const branchId = session.role === BRANCH_MASTER_ROLE ? session.branch_id : undefined;
   const pageSize = parsePageSize(
     resolvedSearchParams,
     "pageSize",
@@ -70,15 +56,14 @@ export default async function DesignersPage({ searchParams }) {
   const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
   const direction = parseDirection(resolvedSearchParams, "direction", "desc");
   const [branches, designersPage, activeDesigners] = await Promise.all([
-    listBranches({ activeOnly: true, branchId }),
+    listBranches({ activeOnly: true }),
     listDesignersPage({
-      branchId,
       page: currentPage,
       pageSize,
       sortKey,
       direction
     }),
-    countDesigners({ branchId, activeOnly: true })
+    countDesigners({ activeOnly: true })
   ]);
 
   return (
@@ -183,12 +168,25 @@ export default async function DesignersPage({ searchParams }) {
                           <button type="submit">디자이너 저장</button>
                         </div>
                       </form>
-                      <form action="/api/admin/designers" method="post" className="modal-danger-zone">
+                    </ModalDialog>
+                    <ModalDialog
+                      title={`${designer.name} 삭제`}
+                      description="정말 이 디자이너를 삭제하시겠습니까? 삭제 후에는 발급 화면에서 더 이상 선택할 수 없습니다."
+                      triggerLabel="삭제"
+                      triggerClassName="danger"
+                    >
+                      <form
+                        action="/api/admin/designers"
+                        method="post"
+                        className="modal-danger-zone"
+                      >
                         <input type="hidden" name="intent" value="delete" />
                         <input type="hidden" name="id" value={designer.id} />
-                        <button type="submit" className="danger">
-                          디자이너 삭제
-                        </button>
+                        <div className="form-actions admin-form-actions">
+                          <button type="submit" className="danger">
+                            네, 삭제합니다
+                          </button>
+                        </div>
                       </form>
                     </ModalDialog>
                   </div>

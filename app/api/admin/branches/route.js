@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import {
   getRouteSession,
-  isBranchMaster,
   isIntegratedMaster
 } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/config";
@@ -49,7 +48,7 @@ function validatePhone(phone) {
 export async function POST(request) {
   const session = await getRouteSession();
 
-  if (!session || (!isIntegratedMaster(session) && !isBranchMaster(session))) {
+  if (!session || !isIntegratedMaster(session)) {
     return Response.redirect(`${getBaseUrl()}/admin/login`, 302);
   }
 
@@ -87,10 +86,6 @@ export async function POST(request) {
       return redirectBack(headerStore);
     }
 
-    if (isBranchMaster(session) && Number(session.branch_id) !== branchId) {
-      return redirectBack(headerStore);
-    }
-
     const phone = normalizeString(formData, "phone");
     const phoneError = validatePhone(phone);
 
@@ -109,10 +104,6 @@ export async function POST(request) {
   }
 
   if (intent === "delete") {
-    if (!isIntegratedMaster(session)) {
-      return redirectBack(headerStore);
-    }
-
     await deleteBranch(Number(formData.get("id")));
 
     return redirectBack(headerStore, { error: "", message: "" });

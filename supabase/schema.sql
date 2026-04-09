@@ -109,14 +109,14 @@ create table public.admin_users (
   branch_id integer references public.branches(id) on delete restrict,
   nickname text,
   memo text,
-  role text not null check (role in ('integrated_master', 'branch_master', 'admin')),
+  role text not null check (role in ('integrated_master', 'admin')),
   is_active boolean not null default true,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now()),
   constraint admin_users_role_branch_check check (
     (role = 'integrated_master' and branch_id is null)
     or
-    (role in ('branch_master', 'admin') and branch_id is not null)
+    (role = 'admin' and branch_id is not null)
   )
 );
 
@@ -147,14 +147,14 @@ create table public.sessions (
   kakao_user_id text not null,
   branch_id integer references public.branches(id) on delete set null,
   nickname text,
-  role text not null check (role in ('integrated_master', 'branch_master', 'admin')),
+  role text not null check (role in ('integrated_master', 'admin')),
   is_master boolean not null default false,
   created_at timestamptz not null default timezone('utc', now()),
   expires_at timestamptz not null,
   constraint sessions_role_branch_check check (
     (role = 'integrated_master' and branch_id is null)
     or
-    (role in ('branch_master', 'admin') and branch_id is not null)
+    (role = 'admin' and branch_id is not null)
   )
 );
 

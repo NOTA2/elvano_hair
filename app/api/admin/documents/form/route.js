@@ -10,6 +10,7 @@ import {
   listNotificationTemplates,
   listTemplates
 } from "@/lib/db";
+import { isDocumentExpired } from "@/lib/documents";
 
 export async function GET(request) {
   const session = await getRouteSession();
@@ -65,6 +66,13 @@ export async function GET(request) {
   if (document.status === "signed") {
     return Response.json(
       { error: "서명 완료된 문서는 수정할 수 없습니다." },
+      { status: 409 }
+    );
+  }
+
+  if (isDocumentExpired(document)) {
+    return Response.json(
+      { error: "서명 기한이 지난 문서는 수정할 수 없습니다." },
       { status: 409 }
     );
   }

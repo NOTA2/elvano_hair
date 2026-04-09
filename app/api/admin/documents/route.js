@@ -18,7 +18,12 @@ import {
   updateDocument,
   updateDocumentBizgo
 } from "@/lib/db";
-import { buildDocumentValues, createDocumentToken, fillTemplate } from "@/lib/documents";
+import {
+  buildDocumentValues,
+  createDocumentToken,
+  fillTemplate,
+  isDocumentExpired
+} from "@/lib/documents";
 import {
   normalizeTemplateContent,
   sanitizeTemplateContent,
@@ -134,6 +139,13 @@ export async function POST(request) {
     if (document.status === "signed") {
       return redirectBack(headerStore, {
         message: "서명이 완료된 문서는 수정할 수 없습니다.",
+        messageType: "error"
+      });
+    }
+
+    if (isDocumentExpired(document)) {
+      return redirectBack(headerStore, {
+        message: "서명 기한이 지난 문서는 수정할 수 없습니다.",
         messageType: "error"
       });
     }
