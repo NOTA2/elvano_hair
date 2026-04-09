@@ -7,6 +7,8 @@ import { getBaseUrl, MASTER_KAKAO_ID } from "@/lib/config";
 import {
   createAdminUser,
   deleteAdminUser,
+  deleteSessionsByKakaoUserId,
+  getAdminUserById,
   getAdminUserByKakaoId,
   getLoginAttemptByKakaoId
 } from "@/lib/db";
@@ -74,7 +76,16 @@ export async function POST(request) {
   }
 
   if (intent === "delete") {
-    await deleteAdminUser(Number(formData.get("id")));
+    const adminUser = await getAdminUserById(Number(formData.get("id")));
+
+    if (!adminUser) {
+      return redirectBack(headerStore);
+    }
+
+    await Promise.all([
+      deleteAdminUser(adminUser.id),
+      deleteSessionsByKakaoUserId(adminUser.kakao_user_id)
+    ]);
   }
 
   return redirectBack(headerStore);
