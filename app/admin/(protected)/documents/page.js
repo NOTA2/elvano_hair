@@ -158,6 +158,8 @@ export default async function AdminDocumentsPage({ searchParams }) {
               sortOptions={sortOptions}
               pageSizeOptions={PAGE_SIZE_OPTIONS}
             />
+          </div>
+          <div className="documents-toolbar-actions">
             <ModalDialog
               title="서명 문서 발급"
               triggerLabel="문서 발급"
@@ -216,7 +218,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
                         </div>
                         <div className="document-mobile-customer-line">
                           <span className="document-mobile-summary-strong">
-                            {document.customer_name}
+                            {document.customer_name} 고객님
                           </span>
                           <span className="document-mobile-customer-phone">
                             {maskKoreanPhoneNumber(document.recipient_phone)}
