@@ -25,7 +25,6 @@
 | `BIZGO_SENDER_KEY` | Bizgo 발신 프로필 키 |
 | `GOOGLE_DRIVE_FOLDER_ID` | 서명 완료 PDF를 업로드할 Google Drive 폴더 ID |
 | `GOOGLE_SERVICE_ACCOUNT_KEY_JSON_BASE64` | Google Drive 업로드용 서비스 계정 JSON 키를 base64로 인코딩한 값 |
-| `GOOGLE_SERVICE_ACCOUNT_KEY_FILE` | 로컬 개발에서만 사용할 서비스 계정 JSON 키 파일 경로 |
 | `GOOGLE_DRIVE_IMPERSONATED_USER_EMAIL` | Google Workspace 도메인 위임 사용 시 위임 대상 사용자 이메일 |
 | `MASTER_KAKAO_ID` | 통합 마스터 카카오 ID |
 
@@ -124,8 +123,15 @@ Bizgo base URL은 코드에서 `https://mars.ibapi.kr/api/comm` 으로 고정되
 1. Google Cloud Console에서 Drive API 활성화
 2. 서비스 계정 JSON 키 발급
 3. `GOOGLE_DRIVE_FOLDER_ID` 설정
-4. Vercel에는 `GOOGLE_SERVICE_ACCOUNT_KEY_JSON_BASE64` 설정
-5. 로컬에는 `GOOGLE_SERVICE_ACCOUNT_KEY_FILE` 또는 `GOOGLE_SERVICE_ACCOUNT_KEY_JSON_BASE64` 설정
+4. Vercel과 로컬에 `GOOGLE_SERVICE_ACCOUNT_KEY_JSON_BASE64` 설정
+
+macOS에서 JSON 키를 base64로 변환하는 예시:
+
+```bash
+base64 -i ~/Downloads/service-account-key.json | tr -d '\n'
+```
+
+base64는 암호화가 아니므로 JSON 원본 키와 같은 비밀값으로 취급한다.
 
 운영 폴더는 개인 My Drive 공유 폴더보다 Shared Drive 폴더를 권장한다. 개인 My Drive 폴더를 서비스 계정에 공유하면 생성 파일 소유자가 서비스 계정이 되어 `storageQuotaExceeded`가 발생할 수 있다.
 
