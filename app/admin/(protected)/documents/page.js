@@ -71,6 +71,62 @@ function bizgoLabel(status) {
   return status === "sent" ? "발송 완료" : "미발송";
 }
 
+function drivePdfStatus(document) {
+  if (document.status !== "signed") {
+    return null;
+  }
+
+  if (document.drive_pdf_url) {
+    return {
+      label: "PDF 보기",
+      className: "positive",
+      href: document.drive_pdf_url
+    };
+  }
+
+  if (document.pdf_export_status === "failed") {
+    return {
+      label: "PDF 실패",
+      className: "negative"
+    };
+  }
+
+  if (document.pdf_export_status === "skipped") {
+    return {
+      label: "PDF 미설정",
+      className: "neutral"
+    };
+  }
+
+  return {
+    label: "PDF 생성 중",
+    className: "neutral"
+  };
+}
+
+function DrivePdfChip({ document }) {
+  const status = drivePdfStatus(document);
+
+  if (!status) {
+    return <span className="table-cell-copy">-</span>;
+  }
+
+  if (status.href) {
+    return (
+      <a
+        className={`status-chip ${status.className}`}
+        href={status.href}
+        target="_blank"
+        rel="noreferrer"
+      >
+        {status.label}
+      </a>
+    );
+  }
+
+  return <span className={`status-chip ${status.className}`}>{status.label}</span>;
+}
+
 function parseKeyword(searchParams, key = "keyword") {
   const value = searchParams?.[key];
   return String(Array.isArray(value) ? value[0] : value || "").trim();
@@ -214,6 +270,9 @@ export default async function AdminDocumentsPage({ searchParams }) {
                             {isExpired ? (
                               <span className="status-chip negative">기한 만료</span>
                             ) : null}
+                            {drivePdfStatus(document) ? (
+                              <DrivePdfChip document={document} />
+                            ) : null}
                           </div>
                         </div>
                         <div className="document-mobile-customer-line">
@@ -309,6 +368,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
                     <th>문서 제목</th>
                     <th>생성일</th>
                     <th>알림톡</th>
+                    <th>PDF</th>
                     <th>열람</th>
                   </tr>
                 </thead>
@@ -357,6 +417,9 @@ export default async function AdminDocumentsPage({ searchParams }) {
                             {bizgoIndicatorState.label}
                           </span>
                         </div>
+                      </td>
+                      <td>
+                        <DrivePdfChip document={document} />
                       </td>
                       <td>
                         <div className="inline-actions">
