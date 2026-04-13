@@ -3,6 +3,10 @@ import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
 import SelectField from "@/components/SelectField";
+import StatusFilterChips, {
+  ACTIVE_STATUS_OPTIONS,
+  parseStatusFilters
+} from "@/components/StatusFilterChips";
 import { requireIntegratedMasterSession } from "@/lib/auth";
 import { countBranches, listBranchesPage } from "@/lib/db";
 import {
@@ -20,6 +24,7 @@ const SORT_OPTIONS = [
   { value: "created_at", label: "생성일" },
   { value: "is_active", label: "사용 여부" }
 ];
+const STATUS_PARAM = "status";
 const ERROR_MESSAGES = {
   phone_required: "지점 전화번호를 입력해 주세요.",
   phone_invalid:
@@ -40,19 +45,30 @@ export default async function BranchesPage({ searchParams }) {
   const currentPage = parsePage(resolvedSearchParams);
   const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
   const direction = parseDirection(resolvedSearchParams, "direction", "desc");
-  const errorMessage =
-    String(resolvedSearchParams?.message || "").trim() ||
-    ERROR_MESSAGES[String(resolvedSearchParams?.error || "")] ||
-    "";
-  const [branchesPage, activeBranches] = await Promise.all([
+  const statusFilters = parseStatusFilters({
+    searchParams: resolvedSearchParams,
+    param: STATUS_PARAM,
+    options: ACTIVE_STATUS_OPTIONS
+  });
+  const [branchesPage, activeBranches, inactiveBranches] = await Promise.all([
     listBranchesPage({
+      statusFilters,
       page: currentPage,
       pageSize,
       sortKey,
       direction
     }),
-    countBranches({ activeOnly: true })
+    countBranches({ activeOnly: true }),
+    countBranches({ statusFilters: ["inactive"] })
   ]);
+  const statusCounts = {
+    active: activeBranches,
+    inactive: inactiveBranches
+  };
+  const errorMessage =
+    String(resolvedSearchParams?.message || "").trim() ||
+    ERROR_MESSAGES[String(resolvedSearchParams?.error || "")] ||
+    "";
 
   return (
     <div className="section-stack">
@@ -63,10 +79,14 @@ export default async function BranchesPage({ searchParams }) {
       <section className="panel">
         <div className="panel-toolbar">
           <div className="panel-toolbar-primary">
-            <div className="panel-kpi-row">
-              <span className="metric-pill">지점 {branchesPage.totalCount}</span>
-              <span className="metric-pill">활성 {activeBranches}</span>
-            </div>
+            <StatusFilterChips
+              pathname="/admin/branches"
+              searchParams={resolvedSearchParams}
+              selectedStatuses={statusFilters}
+              counts={statusCounts}
+              options={ACTIVE_STATUS_OPTIONS}
+              param={STATUS_PARAM}
+            />
           </div>
           <div className="panel-actions">
             <ListQueryControls

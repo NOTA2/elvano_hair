@@ -3,6 +3,10 @@ import AdminSectionIntro from "@/components/AdminSectionIntro";
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
+import StatusFilterChips, {
+  LIFECYCLE_STATUS_OPTIONS,
+  parseStatusFilters
+} from "@/components/StatusFilterChips";
 import { requireBranchManagerSession } from "@/lib/auth";
 import {
   countNotificationTemplates,
@@ -29,6 +33,7 @@ const SORT_OPTIONS = [
   { value: "template_code", label: "템플릿 코드" },
   { value: "inspection_status", label: "검수 상태" }
 ];
+const STATUS_PARAM = "status";
 const ERROR_MESSAGES = {
   sender_key_missing: "환경변수 `BIZGO_SENDER_KEY`가 없습니다.",
   template_code_required: "템플릿 코드를 입력해야 합니다.",
@@ -114,20 +119,37 @@ export default async function NotificationTemplatesPage({ searchParams }) {
   const currentPage = parsePage(resolvedSearchParams);
   const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
   const direction = parseDirection(resolvedSearchParams, "direction", "desc");
-  const [templatesPage, activeCount, deletedCount, approvedCount, requestedCount] =
+  const statusFilters = parseStatusFilters({
+    searchParams: resolvedSearchParams,
+    param: STATUS_PARAM
+  });
+  const [
+    templatesPage,
+    activeCount,
+    inactiveCount,
+    deletedCount,
+    approvedCount,
+    requestedCount
+  ] =
     await Promise.all([
       listNotificationTemplatesPage({
-        includeDeleted: true,
+        statusFilters,
         page: currentPage,
         pageSize,
         sortKey,
         direction
       }),
       countNotificationTemplates({ status: "active" }),
+      countNotificationTemplates({ status: "inactive" }),
       countNotificationTemplates({ status: "deleted" }),
       countNotificationTemplates({ includeDeleted: true, inspectionStatus: "APR" }),
       countNotificationTemplates({ includeDeleted: true, inspectionStatus: "REQ" })
     ]);
+  const statusCounts = {
+    active: activeCount,
+    inactive: inactiveCount,
+    deleted: deletedCount
+  };
   const errorMessage =
     String(resolvedSearchParams?.message || "").trim() ||
     ERROR_MESSAGES[String(resolvedSearchParams?.error || "")] ||
@@ -161,12 +183,17 @@ export default async function NotificationTemplatesPage({ searchParams }) {
       <section className="panel">
         <div className="panel-toolbar">
           <div className="panel-toolbar-primary">
+            <StatusFilterChips
+              pathname="/admin/notification-templates"
+              searchParams={resolvedSearchParams}
+              selectedStatuses={statusFilters}
+              counts={statusCounts}
+              options={LIFECYCLE_STATUS_OPTIONS}
+              param={STATUS_PARAM}
+            />
             <div className="panel-kpi-row">
-              <span className="metric-pill">전체 {templatesPage.totalCount}</span>
-              <span className="metric-pill">사용 {activeCount}</span>
               <span className="metric-pill">승인 {approvedCount}</span>
               <span className="metric-pill">검수 요청 {requestedCount}</span>
-              <span className="metric-pill">삭제 {deletedCount}</span>
             </div>
           </div>
           <div className="panel-actions">
