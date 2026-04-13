@@ -23,6 +23,10 @@
 | `KAKAO_REDIRECT_URI` | 카카오 OAuth callback URL |
 | `BIZGO_API_KEY` | Bizgo API 키 |
 | `BIZGO_SENDER_KEY` | Bizgo 발신 프로필 키 |
+| `GOOGLE_DRIVE_FOLDER_ID` | 서명 완료 PDF를 업로드할 Google Drive 폴더 ID |
+| `GOOGLE_SERVICE_ACCOUNT_KEY_JSON_BASE64` | Google Drive 업로드용 서비스 계정 JSON 키를 base64로 인코딩한 값 |
+| `GOOGLE_SERVICE_ACCOUNT_KEY_FILE` | 로컬 개발에서만 사용할 서비스 계정 JSON 키 파일 경로 |
+| `GOOGLE_DRIVE_IMPERSONATED_USER_EMAIL` | Google Workspace 도메인 위임 사용 시 위임 대상 사용자 이메일 |
 | `MASTER_KAKAO_ID` | 통합 마스터 카카오 ID |
 
 ## 로컬 실행
@@ -110,6 +114,22 @@ Bizgo base URL은 코드에서 `https://mars.ibapi.kr/api/comm` 으로 고정되
 2. 발신 프로필 키가 유효한지
 3. 메시지 본문과 버튼 URL 치환값이 맞는지
 4. 버튼 링크가 운영 도메인 기준으로 열리는지
+
+## Google Drive PDF 설정
+
+서명 완료 PDF 업로드는 서비스 계정으로 Google Drive API를 호출한다.
+
+필수 설정:
+
+1. Google Cloud Console에서 Drive API 활성화
+2. 서비스 계정 JSON 키 발급
+3. `GOOGLE_DRIVE_FOLDER_ID` 설정
+4. Vercel에는 `GOOGLE_SERVICE_ACCOUNT_KEY_JSON_BASE64` 설정
+5. 로컬에는 `GOOGLE_SERVICE_ACCOUNT_KEY_FILE` 또는 `GOOGLE_SERVICE_ACCOUNT_KEY_JSON_BASE64` 설정
+
+운영 폴더는 개인 My Drive 공유 폴더보다 Shared Drive 폴더를 권장한다. 개인 My Drive 폴더를 서비스 계정에 공유하면 생성 파일 소유자가 서비스 계정이 되어 `storageQuotaExceeded`가 발생할 수 있다.
+
+개인 My Drive 폴더를 꼭 써야 한다면 Google Workspace 도메인 위임을 설정하고, `GOOGLE_DRIVE_IMPERSONATED_USER_EMAIL`에 실제 Drive 사용자 이메일을 넣는다.
 
 ## 최초 셋업 순서
 

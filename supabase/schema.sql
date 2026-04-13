@@ -103,6 +103,15 @@ create table public.documents (
   signature_storage_path text,
   bizgo_status text,
   bizgo_response jsonb,
+  drive_pdf_file_id text,
+  drive_pdf_url text,
+  pdf_export_status text check (
+    pdf_export_status is null
+    or pdf_export_status in ('pending', 'processing', 'uploaded', 'failed', 'skipped')
+  ),
+  pdf_export_error text,
+  pdf_exported_at timestamptz,
+  pdf_export_updated_at timestamptz,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -175,6 +184,8 @@ create index documents_designer_id_idx on public.documents(designer_id);
 create index documents_template_id_idx on public.documents(template_id);
 create index documents_notification_template_id_idx on public.documents(notification_template_id);
 create index documents_created_at_idx on public.documents(created_at desc);
+create index documents_pdf_export_status_idx on public.documents(pdf_export_status);
+create index documents_drive_pdf_file_id_idx on public.documents(drive_pdf_file_id);
 create index admin_users_branch_id_idx on public.admin_users(branch_id);
 create index admin_users_kakao_user_id_idx on public.admin_users(kakao_user_id);
 create index login_attempts_last_attempt_at_idx on public.login_attempts(last_attempt_at desc);
