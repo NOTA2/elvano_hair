@@ -16,6 +16,7 @@ import {
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const SORT_OPTIONS = [
+  { value: "sort_order", label: "선택 순서" },
   { value: "updated_at", label: "최근 수정일" },
   { value: "name", label: "템플릿명" },
   { value: "document_title", label: "문서 제목" },
@@ -50,8 +51,8 @@ export default async function AdminTemplatesPage({ searchParams }) {
     DEFAULT_PAGE_SIZE
   );
   const currentPage = parsePage(resolvedSearchParams);
-  const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
-  const direction = parseDirection(resolvedSearchParams, "direction", "desc");
+  const sortKey = parseSort(resolvedSearchParams, "sort", "sort_order");
+  const direction = parseDirection(resolvedSearchParams, "direction", "asc");
   const [templatesPage, activeCount, inactiveCount, deletedCount] = await Promise.all([
     listTemplatesPage({
       includeDeleted: true,
@@ -116,6 +117,18 @@ export default async function AdminTemplatesPage({ searchParams }) {
                       <option value="inactive">중지</option>
                     </SelectField>
                   </label>
+                  <label className="field">
+                    <span className="field-label">선택 순서</span>
+                    <input
+                      type="number"
+                      name="sort_order"
+                      min="0"
+                      step="1"
+                      inputMode="numeric"
+                      defaultValue="0"
+                    />
+                    <span className="field-help">낮은 숫자일수록 먼저 나옵니다.</span>
+                  </label>
                 </div>
                 <div className="form-actions admin-form-actions">
                   <button type="submit">템플릿 저장</button>
@@ -136,6 +149,7 @@ export default async function AdminTemplatesPage({ searchParams }) {
                     <div className="list-row-meta">
                       {template.document_title || "문서 제목 없음"}
                     </div>
+                    <div className="list-row-meta">선택 순서 {template.sort_order}</div>
                   </div>
                   <div className="list-row-actions">
                     <span className={`status-chip ${templateStatusClass(template)}`}>
@@ -177,6 +191,18 @@ export default async function AdminTemplatesPage({ searchParams }) {
                               <option value="inactive">중지</option>
                               <option value="deleted">삭제</option>
                             </SelectField>
+                          </label>
+                          <label className="field">
+                            <span className="field-label">선택 순서</span>
+                            <input
+                              type="number"
+                              name="sort_order"
+                              min="0"
+                              step="1"
+                              inputMode="numeric"
+                              defaultValue={template.sort_order}
+                            />
+                            <span className="field-help">낮은 숫자일수록 먼저 나옵니다.</span>
                           </label>
                         </div>
                         <div className="form-actions admin-form-actions">
