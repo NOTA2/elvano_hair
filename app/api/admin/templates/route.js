@@ -26,6 +26,16 @@ function resolveTemplateStatus(formData) {
   return formData.get("is_active") === "1" ? "active" : "inactive";
 }
 
+function resolveTemplateSortOrder(formData) {
+  const value = Number.parseInt(String(formData.get("sort_order") || "0"), 10);
+
+  if (!Number.isFinite(value) || value < 0) {
+    return 0;
+  }
+
+  return value;
+}
+
 export async function POST(request) {
   const session = await getRouteSession();
   if (!session || !canManageBranchSettings(session)) {
@@ -43,6 +53,7 @@ export async function POST(request) {
       name: formData.get("name"),
       document_title: formData.get("document_title"),
       content: normalizedContent,
+      sort_order: resolveTemplateSortOrder(formData),
       status: resolveTemplateStatus(formData)
     });
   }
@@ -58,6 +69,7 @@ export async function POST(request) {
       name: formData.get("name"),
       document_title: formData.get("document_title"),
       content: normalizedContent,
+      sort_order: resolveTemplateSortOrder(formData),
       status: resolveTemplateStatus(formData)
     });
   }

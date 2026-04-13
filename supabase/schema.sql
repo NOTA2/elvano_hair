@@ -36,6 +36,7 @@ create table public.templates (
   name text not null,
   document_title text not null,
   content text not null,
+  sort_order integer not null default 0,
   is_active boolean not null default true,
   deleted_at timestamptz,
   created_at timestamptz not null default timezone('utc', now()),
@@ -166,6 +167,7 @@ create table public.sessions (
 );
 
 create index designers_branch_id_idx on public.designers(branch_id);
+create index templates_sort_order_idx on public.templates(sort_order asc, name asc);
 create index templates_deleted_at_idx on public.templates(deleted_at);
 create index notification_templates_deleted_at_idx on public.notification_templates(deleted_at);
 create index documents_branch_id_idx on public.documents(branch_id);

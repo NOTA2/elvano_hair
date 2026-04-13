@@ -362,7 +362,7 @@ export default function SignatureClient({
         />
 
         <div className="doc-consent">
-          담당자로부터 위 내용에 대하여 충분히 설명을 들었으며, 위 내용에 동의합니다.
+          위 문서 내용에 대해 숙지하였으며, 위 내용에 동의합니다.
           <div className="doc-consent-name">
             이름 : {documentData.customer_name}
           </div>
