@@ -3,6 +3,10 @@ import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
 import SelectField from "@/components/SelectField";
+import StatusFilterChips, {
+  ACTIVE_STATUS_OPTIONS,
+  parseStatusFilters
+} from "@/components/StatusFilterChips";
 import { requireIntegratedMasterSession } from "@/lib/auth";
 import {
   countDesigners,
@@ -24,6 +28,7 @@ const SORT_OPTIONS = [
   { value: "branch_name", label: "지점" },
   { value: "is_active", label: "사용 여부" }
 ];
+const STATUS_PARAM = "status";
 
 function branchField(session, branches, defaultBranchId) {
   return (
@@ -55,16 +60,27 @@ export default async function DesignersPage({ searchParams }) {
   const currentPage = parsePage(resolvedSearchParams);
   const sortKey = parseSort(resolvedSearchParams, "sort", "updated_at");
   const direction = parseDirection(resolvedSearchParams, "direction", "desc");
-  const [branches, designersPage, activeDesigners] = await Promise.all([
+  const statusFilters = parseStatusFilters({
+    searchParams: resolvedSearchParams,
+    param: STATUS_PARAM,
+    options: ACTIVE_STATUS_OPTIONS
+  });
+  const [branches, designersPage, activeDesigners, inactiveDesigners] = await Promise.all([
     listBranches({ activeOnly: true }),
     listDesignersPage({
+      statusFilters,
       page: currentPage,
       pageSize,
       sortKey,
       direction
     }),
-    countDesigners({ activeOnly: true })
+    countDesigners({ activeOnly: true }),
+    countDesigners({ statusFilters: ["inactive"] })
   ]);
+  const statusCounts = {
+    active: activeDesigners,
+    inactive: inactiveDesigners
+  };
 
   return (
     <div className="section-stack">
@@ -75,10 +91,14 @@ export default async function DesignersPage({ searchParams }) {
       <section className="panel">
         <div className="panel-toolbar">
           <div className="panel-toolbar-primary">
-            <div className="panel-kpi-row">
-              <span className="metric-pill">전체 {designersPage.totalCount}</span>
-              <span className="metric-pill">활성 {activeDesigners}</span>
-            </div>
+            <StatusFilterChips
+              pathname="/admin/designers"
+              searchParams={resolvedSearchParams}
+              selectedStatuses={statusFilters}
+              counts={statusCounts}
+              options={ACTIVE_STATUS_OPTIONS}
+              param={STATUS_PARAM}
+            />
           </div>
           <div className="panel-actions">
             <ListQueryControls

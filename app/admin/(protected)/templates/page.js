@@ -4,6 +4,10 @@ import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
 import SelectField from "@/components/SelectField";
+import StatusFilterChips, {
+  LIFECYCLE_STATUS_OPTIONS,
+  parseStatusFilters
+} from "@/components/StatusFilterChips";
 import { requireBranchManagerSession } from "@/lib/auth";
 import { countTemplates, listTemplatesPage } from "@/lib/db";
 import {
@@ -22,6 +26,11 @@ const SORT_OPTIONS = [
   { value: "document_title", label: "문서 제목" },
   { value: "status", label: "상태" }
 ];
+const STATUS_PARAM = "status";
+
+function isDefaultActiveOnly(selectedStatuses) {
+  return selectedStatuses.length === 1 && selectedStatuses[0] === "active";
+}
 
 function templateStatusLabel(template) {
   if (template.status === "deleted") {
@@ -53,9 +62,15 @@ export default async function AdminTemplatesPage({ searchParams }) {
   const currentPage = parsePage(resolvedSearchParams);
   const sortKey = parseSort(resolvedSearchParams, "sort", "sort_order");
   const direction = parseDirection(resolvedSearchParams, "direction", "asc");
+  const statusFilters = parseStatusFilters({
+    searchParams: resolvedSearchParams,
+    param: STATUS_PARAM
+  });
   const [templatesPage, activeCount, inactiveCount, deletedCount] = await Promise.all([
     listTemplatesPage({
-      includeDeleted: true,
+      activeOnly: isDefaultActiveOnly(statusFilters),
+      includeDeleted: false,
+      statusFilters,
       page: currentPage,
       pageSize,
       sortKey,
@@ -65,6 +80,11 @@ export default async function AdminTemplatesPage({ searchParams }) {
     countTemplates({ status: "inactive" }),
     countTemplates({ status: "deleted" })
   ]);
+  const statusCounts = {
+    active: activeCount,
+    inactive: inactiveCount,
+    deleted: deletedCount
+  };
 
   return (
     <div className="section-stack">
@@ -75,12 +95,14 @@ export default async function AdminTemplatesPage({ searchParams }) {
       <section className="panel">
         <div className="panel-toolbar">
           <div className="panel-toolbar-primary">
-            <div className="panel-kpi-row">
-              <span className="metric-pill">전체 {templatesPage.totalCount}</span>
-              <span className="metric-pill">활성 {activeCount}</span>
-              <span className="metric-pill">중지 {inactiveCount}</span>
-              <span className="metric-pill">삭제 {deletedCount}</span>
-            </div>
+            <StatusFilterChips
+              pathname="/admin/templates"
+              searchParams={resolvedSearchParams}
+              selectedStatuses={statusFilters}
+              counts={statusCounts}
+              options={LIFECYCLE_STATUS_OPTIONS}
+              param={STATUS_PARAM}
+            />
           </div>
           <div className="panel-actions">
             <ListQueryControls
