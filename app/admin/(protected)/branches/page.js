@@ -1,4 +1,5 @@
 import AdminSectionIntro from "@/components/AdminSectionIntro";
+import ActionTooltip from "@/components/ActionTooltip";
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
@@ -155,70 +156,79 @@ export default async function BranchesPage({ searchParams }) {
                     <span className={`status-chip ${branch.is_active ? "positive" : "neutral"}`}>
                       {branch.is_active ? "사용 중" : "중지"}
                     </span>
-                    <ModalDialog
-                      title={`${branch.name} 지점 수정`}
-                      triggerLabel="수정"
-                    >
-                      <form action="/api/admin/branches" method="post">
-                        <input type="hidden" name="intent" value="update" />
-                        <input type="hidden" name="id" value={branch.id} />
-                        <div className="form-grid">
-                          <label className="field">
-                            <span className="field-label">지점명</span>
-                            <input name="name" defaultValue={branch.name} required />
-                          </label>
-                          <label className="field">
-                            <span className="field-label">지점 전화번호</span>
-                            <input
-                              name="phone"
-                              defaultValue={branch.phone || ""}
-                              placeholder="02-123-4567 / 031-1234-5678"
-                              inputMode="tel"
-                              pattern="0[0-9]{1,2}-[0-9]{3,4}-[0-9]{3,4}"
-                              title="지점 전화번호는 02-123-4567 또는 031-1234-5678 형식으로 입력해 주세요."
-                              required
-                            />
-                          </label>
-                          <label className="field">
-                            <span className="field-label">사용 여부</span>
-                            <SelectField name="is_active" defaultValue={branch.is_active ? "1" : "0"}>
-                              <option value="1">사용</option>
-                              <option value="0">중지</option>
-                            </SelectField>
-                          </label>
-                          <label className="field-full">
-                            <span className="field-label">설명</span>
-                            <textarea
-                              name="description"
-                              defaultValue={branch.description || ""}
-                            />
-                          </label>
-                        </div>
-                        <div className="form-actions admin-form-actions">
-                          <button type="submit">지점 저장</button>
-                        </div>
-                      </form>
-                    </ModalDialog>
-                    <ModalDialog
-                      title={`${branch.name} 지점 삭제`}
-                      description="정말 이 지점을 삭제하시겠습니까? 삭제 후에는 연결된 설정과 목록에 영향이 있을 수 있습니다."
-                      triggerLabel="삭제"
-                      triggerClassName="danger"
-                    >
-                      <form
-                        action="/api/admin/branches"
-                        method="post"
-                        className="modal-danger-zone"
+                    <ActionTooltip label="지점 수정">
+                      <ModalDialog
+                        title={`${branch.name} 지점 수정`}
+                        triggerLabel="✏️"
+                        triggerAriaLabel={`${branch.name} 지점 수정`}
+                        triggerTitle="지점 수정"
+                        triggerClassName="secondary icon-action-button table-action-button"
                       >
-                        <input type="hidden" name="intent" value="delete" />
-                        <input type="hidden" name="id" value={branch.id} />
-                        <div className="form-actions admin-form-actions">
-                          <button type="submit" className="danger">
-                            네, 삭제합니다
-                          </button>
-                        </div>
-                      </form>
-                    </ModalDialog>
+                        <form action="/api/admin/branches" method="post">
+                          <input type="hidden" name="intent" value="update" />
+                          <input type="hidden" name="id" value={branch.id} />
+                          <div className="form-grid">
+                            <label className="field">
+                              <span className="field-label">지점명</span>
+                              <input name="name" defaultValue={branch.name} required />
+                            </label>
+                            <label className="field">
+                              <span className="field-label">지점 전화번호</span>
+                              <input
+                                name="phone"
+                                defaultValue={branch.phone || ""}
+                                placeholder="02-123-4567 / 031-1234-5678"
+                                inputMode="tel"
+                                pattern="0[0-9]{1,2}-[0-9]{3,4}-[0-9]{3,4}"
+                                title="지점 전화번호는 02-123-4567 또는 031-1234-5678 형식으로 입력해 주세요."
+                                required
+                              />
+                            </label>
+                            <label className="field">
+                              <span className="field-label">사용 여부</span>
+                              <SelectField name="is_active" defaultValue={branch.is_active ? "1" : "0"}>
+                                <option value="1">사용</option>
+                                <option value="0">중지</option>
+                              </SelectField>
+                            </label>
+                            <label className="field-full">
+                              <span className="field-label">설명</span>
+                              <textarea
+                                name="description"
+                                defaultValue={branch.description || ""}
+                              />
+                            </label>
+                          </div>
+                          <div className="form-actions admin-form-actions">
+                            <button type="submit">지점 저장</button>
+                          </div>
+                        </form>
+                      </ModalDialog>
+                    </ActionTooltip>
+                    <ActionTooltip label="지점 삭제">
+                      <ModalDialog
+                        title={`${branch.name} 지점 삭제`}
+                        description="정말 이 지점을 삭제하시겠습니까? 삭제 후에는 연결된 설정과 목록에 영향이 있을 수 있습니다."
+                        triggerLabel="🗑️"
+                        triggerAriaLabel={`${branch.name} 지점 삭제`}
+                        triggerTitle="지점 삭제"
+                        triggerClassName="danger icon-action-button table-action-button negative"
+                      >
+                        <form
+                          action="/api/admin/branches"
+                          method="post"
+                          className="modal-danger-zone"
+                        >
+                          <input type="hidden" name="intent" value="delete" />
+                          <input type="hidden" name="id" value={branch.id} />
+                          <div className="form-actions admin-form-actions">
+                            <button type="submit" className="danger">
+                              네, 삭제합니다
+                            </button>
+                          </div>
+                        </form>
+                      </ModalDialog>
+                    </ActionTooltip>
                   </div>
                 </div>
               ))}

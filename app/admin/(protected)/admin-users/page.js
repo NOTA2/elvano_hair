@@ -1,5 +1,6 @@
 import AdminUserRoleForm from "@/components/AdminUserRoleForm";
 import AdminSectionIntro from "@/components/AdminSectionIntro";
+import ActionTooltip from "@/components/ActionTooltip";
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
@@ -189,44 +190,53 @@ export default async function AdminUsersPage({ searchParams }) {
                       <span className="status-chip soft">시스템 고정</span>
                     ) : (
                       <>
-                        <ModalDialog
-                          title={`${user.nickname || user.kakao_user_id} 권한 수정`}
-                          triggerLabel="수정"
-                        >
-                          <AdminUserRoleForm
-                            action="/api/admin/admin-users"
-                            intent="create"
-                            kakaoUserId={user.kakao_user_id}
-                            nickname={user.nickname || ""}
-                            memo={user.memo || ""}
-                            initialRole={user.role}
-                            initialBranchId={user.branch_id || ""}
-                            branches={branches}
-                            availableRoles={allowedRoles}
-                            submitLabel="변경 저장"
-                          />
-                        </ModalDialog>
-                        {viewerIsIntegratedMaster ? (
+                        <ActionTooltip label="권한 수정">
                           <ModalDialog
-                            title={`${user.nickname || user.kakao_user_id} 권한 삭제`}
-                            description="정말 이 관리자 권한을 삭제하시겠습니까? 삭제 후에는 다시 권한을 부여해야 접근할 수 있습니다."
-                            triggerLabel="권한 삭제"
-                            triggerClassName="danger"
+                            title={`${user.nickname || user.kakao_user_id} 권한 수정`}
+                            triggerLabel="✏️"
+                            triggerAriaLabel={`${user.nickname || user.kakao_user_id} 권한 수정`}
+                            triggerTitle="권한 수정"
+                            triggerClassName="secondary icon-action-button table-action-button"
                           >
-                            <form
+                            <AdminUserRoleForm
                               action="/api/admin/admin-users"
-                              method="post"
-                              className="modal-danger-zone"
-                            >
-                              <input type="hidden" name="intent" value="delete" />
-                              <input type="hidden" name="id" value={user.id} />
-                              <div className="form-actions admin-form-actions">
-                                <button type="submit" className="danger">
-                                  네, 삭제합니다
-                                </button>
-                              </div>
-                            </form>
+                              intent="create"
+                              kakaoUserId={user.kakao_user_id}
+                              nickname={user.nickname || ""}
+                              memo={user.memo || ""}
+                              initialRole={user.role}
+                              initialBranchId={user.branch_id || ""}
+                              branches={branches}
+                              availableRoles={allowedRoles}
+                              submitLabel="변경 저장"
+                            />
                           </ModalDialog>
+                        </ActionTooltip>
+                        {viewerIsIntegratedMaster ? (
+                          <ActionTooltip label="권한 삭제">
+                            <ModalDialog
+                              title={`${user.nickname || user.kakao_user_id} 권한 삭제`}
+                              description="정말 이 관리자 권한을 삭제하시겠습니까? 삭제 후에는 다시 권한을 부여해야 접근할 수 있습니다."
+                              triggerLabel="🗑️"
+                              triggerAriaLabel={`${user.nickname || user.kakao_user_id} 권한 삭제`}
+                              triggerTitle="권한 삭제"
+                              triggerClassName="danger icon-action-button table-action-button negative"
+                            >
+                              <form
+                                action="/api/admin/admin-users"
+                                method="post"
+                                className="modal-danger-zone"
+                              >
+                                <input type="hidden" name="intent" value="delete" />
+                                <input type="hidden" name="id" value={user.id} />
+                                <div className="form-actions admin-form-actions">
+                                  <button type="submit" className="danger">
+                                    네, 삭제합니다
+                                  </button>
+                                </div>
+                              </form>
+                            </ModalDialog>
+                          </ActionTooltip>
                         ) : null}
                       </>
                     )}

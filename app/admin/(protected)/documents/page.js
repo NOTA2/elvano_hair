@@ -1,4 +1,5 @@
 import AdminSectionIntro from "@/components/AdminSectionIntro";
+import ActionTooltip from "@/components/ActionTooltip";
 import AlertOnMount from "@/components/AlertOnMount";
 import DocumentsListControls from "@/components/DocumentsListControls";
 import DocumentsSearchControls from "@/components/DocumentsSearchControls";
@@ -82,14 +83,6 @@ function pdfDownloadStatus(document) {
     className: "positive",
     href: `/api/admin/documents/${document.token}/pdf`
   };
-}
-
-function ActionTooltip({ label, children }) {
-  return (
-    <div className="table-action-tooltip compact-action-tooltip" data-tooltip={label} title={label}>
-      {children}
-    </div>
-  );
 }
 
 function DrivePdfAction({ document }) {

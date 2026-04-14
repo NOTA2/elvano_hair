@@ -2973,6 +2973,12 @@ td {
   transform: translate(-50%, 0);
 }
 
+.table-action-tooltip:has(dialog[open])::before,
+.table-action-tooltip:has(dialog[open])::after {
+  opacity: 0;
+  transform: translate(-50%, 4px);
+}
+
 .pagination-bar {
   display: flex;
   align-items: center;
