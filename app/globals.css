@@ -2921,13 +2921,11 @@ td {
 }
 
 .table-action-tooltip:hover,
-.table-action-tooltip:focus-visible,
-.table-action-tooltip:focus-within {
+.table-action-tooltip:has(:focus-visible) {
   z-index: 30;
 }
 
-.table-action-tooltip:focus-visible,
-.table-action-tooltip:focus-within {
+.table-action-tooltip:has(:focus-visible) {
   outline: 2px solid rgba(88, 127, 164, 0.45);
   outline-offset: 4px;
   border-radius: 18px;
@@ -2973,10 +2971,8 @@ td {
 
 .table-action-tooltip:hover::before,
 .table-action-tooltip:hover::after,
-.table-action-tooltip:focus-visible::before,
-.table-action-tooltip:focus-visible::after,
-.table-action-tooltip:focus-within::before,
-.table-action-tooltip:focus-within::after {
+.table-action-tooltip:has(:focus-visible)::before,
+.table-action-tooltip:has(:focus-visible)::after {
   opacity: 1;
   transform: translate(-50%, 0);
 }
