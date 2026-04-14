@@ -2917,6 +2917,13 @@ td {
   position: relative;
   display: inline-flex;
   align-items: center;
+  z-index: 1;
+}
+
+.table-action-tooltip:hover,
+.table-action-tooltip:focus-visible,
+.table-action-tooltip:focus-within {
+  z-index: 30;
 }
 
 .table-action-tooltip:focus-visible,
@@ -2929,6 +2936,7 @@ td {
 .table-action-tooltip::before,
 .table-action-tooltip::after {
   position: absolute;
+  z-index: 31;
   left: 50%;
   opacity: 0;
   pointer-events: none;
