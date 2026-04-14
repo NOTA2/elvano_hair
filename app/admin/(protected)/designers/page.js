@@ -1,4 +1,5 @@
 import AdminSectionIntro from "@/components/AdminSectionIntro";
+import ActionTooltip from "@/components/ActionTooltip";
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
@@ -156,59 +157,68 @@ export default async function DesignersPage({ searchParams }) {
                     <span className={`status-chip ${designer.is_active ? "positive" : "neutral"}`}>
                       {designer.is_active ? "사용 중" : "중지"}
                     </span>
-                    <ModalDialog
-                      title={`${designer.name} 수정`}
-                      triggerLabel="수정"
-                    >
-                      <form action="/api/admin/designers" method="post">
-                        <input type="hidden" name="intent" value="update" />
-                        <input type="hidden" name="id" value={designer.id} />
-                        <div className="form-grid">
-                          {branchField(session, branches, designer.branch_id)}
-                          <label className="field">
-                            <span className="field-label">디자이너명</span>
-                            <input name="name" defaultValue={designer.name} required />
-                          </label>
-                          <label className="field">
-                            <span className="field-label">사용 여부</span>
-                            <SelectField name="is_active" defaultValue={designer.is_active ? "1" : "0"}>
-                              <option value="1">사용</option>
-                              <option value="0">중지</option>
-                            </SelectField>
-                          </label>
-                          <label className="field-full">
-                            <span className="field-label">메모</span>
-                            <textarea
-                              name="description"
-                              defaultValue={designer.description || ""}
-                            />
-                          </label>
-                        </div>
-                        <div className="form-actions admin-form-actions">
-                          <button type="submit">디자이너 저장</button>
-                        </div>
-                      </form>
-                    </ModalDialog>
-                    <ModalDialog
-                      title={`${designer.name} 삭제`}
-                      description="정말 이 디자이너를 삭제하시겠습니까? 삭제 후에는 발급 화면에서 더 이상 선택할 수 없습니다."
-                      triggerLabel="삭제"
-                      triggerClassName="danger"
-                    >
-                      <form
-                        action="/api/admin/designers"
-                        method="post"
-                        className="modal-danger-zone"
+                    <ActionTooltip label="디자이너 수정">
+                      <ModalDialog
+                        title={`${designer.name} 수정`}
+                        triggerLabel="✏️"
+                        triggerAriaLabel={`${designer.name} 수정`}
+                        triggerTitle="디자이너 수정"
+                        triggerClassName="secondary icon-action-button table-action-button"
                       >
-                        <input type="hidden" name="intent" value="delete" />
-                        <input type="hidden" name="id" value={designer.id} />
-                        <div className="form-actions admin-form-actions">
-                          <button type="submit" className="danger">
-                            네, 삭제합니다
-                          </button>
-                        </div>
-                      </form>
-                    </ModalDialog>
+                        <form action="/api/admin/designers" method="post">
+                          <input type="hidden" name="intent" value="update" />
+                          <input type="hidden" name="id" value={designer.id} />
+                          <div className="form-grid">
+                            {branchField(session, branches, designer.branch_id)}
+                            <label className="field">
+                              <span className="field-label">디자이너명</span>
+                              <input name="name" defaultValue={designer.name} required />
+                            </label>
+                            <label className="field">
+                              <span className="field-label">사용 여부</span>
+                              <SelectField name="is_active" defaultValue={designer.is_active ? "1" : "0"}>
+                                <option value="1">사용</option>
+                                <option value="0">중지</option>
+                              </SelectField>
+                            </label>
+                            <label className="field-full">
+                              <span className="field-label">메모</span>
+                              <textarea
+                                name="description"
+                                defaultValue={designer.description || ""}
+                              />
+                            </label>
+                          </div>
+                          <div className="form-actions admin-form-actions">
+                            <button type="submit">디자이너 저장</button>
+                          </div>
+                        </form>
+                      </ModalDialog>
+                    </ActionTooltip>
+                    <ActionTooltip label="디자이너 삭제">
+                      <ModalDialog
+                        title={`${designer.name} 삭제`}
+                        description="정말 이 디자이너를 삭제하시겠습니까? 삭제 후에는 발급 화면에서 더 이상 선택할 수 없습니다."
+                        triggerLabel="🗑️"
+                        triggerAriaLabel={`${designer.name} 삭제`}
+                        triggerTitle="디자이너 삭제"
+                        triggerClassName="danger icon-action-button table-action-button negative"
+                      >
+                        <form
+                          action="/api/admin/designers"
+                          method="post"
+                          className="modal-danger-zone"
+                        >
+                          <input type="hidden" name="intent" value="delete" />
+                          <input type="hidden" name="id" value={designer.id} />
+                          <div className="form-actions admin-form-actions">
+                            <button type="submit" className="danger">
+                              네, 삭제합니다
+                            </button>
+                          </div>
+                        </form>
+                      </ModalDialog>
+                    </ActionTooltip>
                   </div>
                 </div>
               ))}

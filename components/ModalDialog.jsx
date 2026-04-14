@@ -8,6 +8,8 @@ export default function ModalDialog({
   description,
   triggerLabel = "수정",
   triggerClassName = "secondary",
+  triggerAriaLabel,
+  triggerTitle,
   size = "default",
   closeOnBackdrop = true,
   lazy = true,
@@ -52,7 +54,13 @@ export default function ModalDialog({
 
   return (
     <>
-      <button type="button" className={triggerClassName} onClick={openDialog}>
+      <button
+        type="button"
+        className={triggerClassName}
+        aria-label={triggerAriaLabel}
+        title={triggerTitle}
+        onClick={openDialog}
+      >
         {triggerLabel}
       </button>
       <dialog

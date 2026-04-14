@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AdminSectionIntro from "@/components/AdminSectionIntro";
+import ActionTooltip from "@/components/ActionTooltip";
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
 import PaginationControls from "@/components/PaginationControls";
@@ -251,26 +252,30 @@ export default async function NotificationTemplatesPage({ searchParams }) {
                             </button>
                           </form>
                         ) : null}
-                        <ModalDialog
-                          title={`${template.template_name || template.template_code} 삭제`}
-                          description="정말 이 알림톡 템플릿을 목록에서 삭제하시겠습니까? 기존 발급 문서는 유지되지만 새 연결 목록에서는 숨겨집니다."
-                          triggerLabel="목록에서 삭제"
-                          triggerClassName="danger"
-                        >
-                          <form
-                            action="/api/admin/notification-templates"
-                            method="post"
-                            className="modal-danger-zone"
+                        <ActionTooltip label="목록에서 삭제">
+                          <ModalDialog
+                            title={`${template.template_name || template.template_code} 삭제`}
+                            description="정말 이 알림톡 템플릿을 목록에서 삭제하시겠습니까? 기존 발급 문서는 유지되지만 새 연결 목록에서는 숨겨집니다."
+                            triggerLabel="🗑️"
+                            triggerAriaLabel={`${template.template_name || template.template_code} 삭제`}
+                            triggerTitle="목록에서 삭제"
+                            triggerClassName="danger icon-action-button table-action-button negative"
                           >
-                            <input type="hidden" name="intent" value="delete" />
-                            <input type="hidden" name="id" value={template.id} />
-                            <div className="form-actions admin-form-actions">
-                              <button type="submit" className="danger">
-                                네, 삭제합니다
-                              </button>
-                            </div>
-                          </form>
-                        </ModalDialog>
+                            <form
+                              action="/api/admin/notification-templates"
+                              method="post"
+                              className="modal-danger-zone"
+                            >
+                              <input type="hidden" name="intent" value="delete" />
+                              <input type="hidden" name="id" value={template.id} />
+                              <div className="form-actions admin-form-actions">
+                                <button type="submit" className="danger">
+                                  네, 삭제합니다
+                                </button>
+                              </div>
+                            </form>
+                          </ModalDialog>
+                        </ActionTooltip>
                       </>
                     ) : null}
                   </div>

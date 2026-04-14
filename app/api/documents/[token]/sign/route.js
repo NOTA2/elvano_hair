@@ -1,7 +1,5 @@
 import { cookies } from "next/headers";
-import { after } from "next/server";
 import { getDocumentByToken, signDocument } from "@/lib/db";
-import { exportSignedDocumentPdfToDriveSafely } from "@/lib/documentDriveExport";
 import { isDocumentExpired, serializePublicDocument } from "@/lib/documents";
 import { SignatureStorageError, uploadDocumentSignatureFile } from "@/lib/signatures";
 
@@ -66,9 +64,6 @@ export async function POST(request, { params }) {
 
   const signedDocument = await signDocument(document.token, signatureStoragePath);
   cookieStore.delete(`verified_document_${document.token}`);
-  after(async () => {
-    await exportSignedDocumentPdfToDriveSafely(signedDocument);
-  });
 
   return Response.json({ document: serializePublicDocument(signedDocument) });
 }

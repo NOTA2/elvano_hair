@@ -1,4 +1,5 @@
 import AdminSectionIntro from "@/components/AdminSectionIntro";
+import ActionTooltip from "@/components/ActionTooltip";
 import LazyRichTextEditor from "@/components/LazyRichTextEditor";
 import ListQueryControls from "@/components/ListQueryControls";
 import ModalDialog from "@/components/ModalDialog";
@@ -177,61 +178,66 @@ export default async function AdminTemplatesPage({ searchParams }) {
                     <span className={`status-chip ${templateStatusClass(template)}`}>
                       {templateStatusLabel(template)}
                     </span>
-                    <ModalDialog
-                      title={`${template.name} 수정`}
-                      description={
-                        <>삭제 상태로 두면 새 문서 발급에는 나오지 않지만 기존 문서는 그대로 유지됩니다.</>
-                      }
-                      triggerLabel="수정"
-                      size="wide"
-                      closeOnBackdrop={false}
-                    >
-                      <form action="/api/admin/templates" method="post">
-                        <input type="hidden" name="intent" value="update" />
-                        <input type="hidden" name="id" value={template.id} />
-                        <div className="form-grid">
-                          <label className="field">
-                            <span className="field-label">템플릿명</span>
-                            <input name="name" defaultValue={template.name} required />
-                          </label>
-                          <label className="field-full">
-                            <span className="field-label">문서 제목</span>
-                            <input
-                              name="document_title"
-                              defaultValue={template.document_title || ""}
-                              required
-                            />
-                          </label>
-                          <div className="field-full">
-                            <span className="field-label">본문</span>
-                            <LazyRichTextEditor name="content" defaultValue={template.content} />
+                    <ActionTooltip label="템플릿 수정">
+                      <ModalDialog
+                        title={`${template.name} 수정`}
+                        description={
+                          <>삭제 상태로 두면 새 문서 발급에는 나오지 않지만 기존 문서는 그대로 유지됩니다.</>
+                        }
+                        triggerLabel="✏️"
+                        triggerAriaLabel={`${template.name} 수정`}
+                        triggerTitle="템플릿 수정"
+                        triggerClassName="secondary icon-action-button table-action-button"
+                        size="wide"
+                        closeOnBackdrop={false}
+                      >
+                        <form action="/api/admin/templates" method="post">
+                          <input type="hidden" name="intent" value="update" />
+                          <input type="hidden" name="id" value={template.id} />
+                          <div className="form-grid">
+                            <label className="field">
+                              <span className="field-label">템플릿명</span>
+                              <input name="name" defaultValue={template.name} required />
+                            </label>
+                            <label className="field-full">
+                              <span className="field-label">문서 제목</span>
+                              <input
+                                name="document_title"
+                                defaultValue={template.document_title || ""}
+                                required
+                              />
+                            </label>
+                            <div className="field-full">
+                              <span className="field-label">본문</span>
+                              <LazyRichTextEditor name="content" defaultValue={template.content} />
+                            </div>
+                            <label className="field">
+                              <span className="field-label">상태</span>
+                              <SelectField name="status" defaultValue={template.status}>
+                                <option value="active">사용</option>
+                                <option value="inactive">중지</option>
+                                <option value="deleted">삭제</option>
+                              </SelectField>
+                            </label>
+                            <label className="field">
+                              <span className="field-label">선택 순서</span>
+                              <input
+                                type="number"
+                                name="sort_order"
+                                min="0"
+                                step="1"
+                                inputMode="numeric"
+                                defaultValue={template.sort_order}
+                              />
+                              <span className="field-help">낮은 숫자일수록 먼저 나옵니다.</span>
+                            </label>
                           </div>
-                          <label className="field">
-                            <span className="field-label">상태</span>
-                            <SelectField name="status" defaultValue={template.status}>
-                              <option value="active">사용</option>
-                              <option value="inactive">중지</option>
-                              <option value="deleted">삭제</option>
-                            </SelectField>
-                          </label>
-                          <label className="field">
-                            <span className="field-label">선택 순서</span>
-                            <input
-                              type="number"
-                              name="sort_order"
-                              min="0"
-                              step="1"
-                              inputMode="numeric"
-                              defaultValue={template.sort_order}
-                            />
-                            <span className="field-help">낮은 숫자일수록 먼저 나옵니다.</span>
-                          </label>
-                        </div>
-                        <div className="form-actions admin-form-actions">
-                          <button type="submit">수정 저장</button>
-                        </div>
-                      </form>
-                    </ModalDialog>
+                          <div className="form-actions admin-form-actions">
+                            <button type="submit">수정 저장</button>
+                          </div>
+                        </form>
+                      </ModalDialog>
+                    </ActionTooltip>
                   </div>
                 </div>
               ))}

@@ -1,4 +1,5 @@
 import AdminSectionIntro from "@/components/AdminSectionIntro";
+import ActionTooltip from "@/components/ActionTooltip";
 import AlertOnMount from "@/components/AlertOnMount";
 import DocumentsListControls from "@/components/DocumentsListControls";
 import DocumentsSearchControls from "@/components/DocumentsSearchControls";
@@ -71,41 +72,21 @@ function bizgoLabel(status) {
   return status === "sent" ? "발송 완료" : "미발송";
 }
 
-function drivePdfStatus(document) {
+function pdfDownloadStatus(document) {
   if (document.status !== "signed") {
     return null;
   }
 
-  if (document.drive_pdf_url) {
-    return {
-      label: "PDF 보기",
-      className: "positive",
-      href: document.drive_pdf_url
-    };
-  }
-
-  if (document.pdf_export_status === "failed") {
-    return {
-      label: "PDF 실패",
-      className: "negative"
-    };
-  }
-
-  if (document.pdf_export_status === "skipped") {
-    return {
-      label: "PDF 미설정",
-      className: "neutral"
-    };
-  }
-
   return {
-    label: "PDF 생성 중",
-    className: "neutral"
+    icon: "📥",
+    label: "PDF 다운로드",
+    className: "positive",
+    href: `/api/admin/documents/${document.token}/pdf`
   };
 }
 
-function DrivePdfChip({ document }) {
-  const status = drivePdfStatus(document);
+function DrivePdfAction({ document }) {
+  const status = pdfDownloadStatus(document);
 
   if (!status) {
     return <span className="table-cell-copy">-</span>;
@@ -113,18 +94,29 @@ function DrivePdfChip({ document }) {
 
   if (status.href) {
     return (
-      <a
-        className={`status-chip ${status.className}`}
-        href={status.href}
-        target="_blank"
-        rel="noreferrer"
-      >
-        {status.label}
-      </a>
+      <ActionTooltip label={status.label}>
+        <a
+          className={`icon-action-button pdf-icon-action ${status.className}`}
+          href={status.href}
+          aria-label={status.label}
+          download
+        >
+          {status.icon}
+        </a>
+      </ActionTooltip>
     );
   }
 
-  return <span className={`status-chip ${status.className}`}>{status.label}</span>;
+  return (
+    <ActionTooltip label={status.label}>
+      <span
+        className={`icon-action-button pdf-icon-action ${status.className}`}
+        aria-label={status.label}
+      >
+        {status.icon}
+      </span>
+    </ActionTooltip>
+  );
 }
 
 function parseKeyword(searchParams, key = "keyword") {
@@ -270,8 +262,8 @@ export default async function AdminDocumentsPage({ searchParams }) {
                             {isExpired ? (
                               <span className="status-chip negative">기한 만료</span>
                             ) : null}
-                            {drivePdfStatus(document) ? (
-                              <DrivePdfChip document={document} />
+                            {pdfDownloadStatus(document) ? (
+                              <DrivePdfAction document={document} />
                             ) : null}
                           </div>
                         </div>
@@ -292,64 +284,72 @@ export default async function AdminDocumentsPage({ searchParams }) {
                     </div>
 
                     <div className="document-mobile-actions">
-                      <a
-                        className="button document-mobile-view-button"
-                        href={`${baseUrl}/s/${document.token}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        문서 보기
-                      </a>
+                      <ActionTooltip label="문서 보기">
+                        <a
+                          className="icon-action-button document-mobile-view-button"
+                          href={`${baseUrl}/s/${document.token}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label="문서 보기"
+                        >
+                          📄
+                        </a>
+                      </ActionTooltip>
                       {!isEditDisabled ? (
-                        <ModalDialog
-                          title="발급 문서 수정"
-                          triggerLabel="문서 수정"
-                          triggerClassName="secondary document-mobile-action-button"
-                          size="wide"
-                          closeOnBackdrop={false}
-                        >
-                          <LazyAdminDocumentIssueForm
-                            mode="edit"
-                            documentToken={document.token}
-                            branchLocked={!integratedMaster}
-                            branchId={session.branch_id}
-                            branchName={document.branch_name || session.branch_name || ""}
-                          />
-                        </ModalDialog>
+                        <ActionTooltip label="문서 수정">
+                          <ModalDialog
+                            title="발급 문서 수정"
+                            triggerLabel="✏️"
+                            triggerAriaLabel="문서 수정"
+                            triggerTitle="문서 수정"
+                            triggerClassName="secondary icon-action-button document-mobile-action-button"
+                            size="wide"
+                            closeOnBackdrop={false}
+                          >
+                            <LazyAdminDocumentIssueForm
+                              mode="edit"
+                              documentToken={document.token}
+                              branchLocked={!integratedMaster}
+                              branchId={session.branch_id}
+                              branchName={document.branch_name || session.branch_name || ""}
+                            />
+                          </ModalDialog>
+                        </ActionTooltip>
                       ) : (
-                        <span
-                          className="table-action-tooltip"
-                          data-tooltip={editDisabledReason}
-                          title={editDisabledReason}
-                          tabIndex={0}
-                        >
+                        <ActionTooltip label={editDisabledReason}>
                           <button
                             type="button"
-                            className="secondary document-mobile-action-button"
+                            className="secondary icon-action-button document-mobile-action-button"
                             disabled
                             aria-label={editDisabledReason}
                           >
-                            문서 수정
+                            ✏️
                           </button>
-                        </span>
+                        </ActionTooltip>
                       )}
                       {document.notification_template_id ? (
-                        <form
-                          action="/api/admin/documents"
-                          method="post"
-                          data-loading-title="알림톡을 재발송하고 있습니다"
-                          data-loading-copy="검수 상태 확인이 포함되면 평소보다 조금 더 걸릴 수 있습니다."
-                          data-loading-steps={RESEND_LOADING_STEPS}
-                          data-loading-step-interval="1200"
-                          data-loading-toast-delay="320"
-                          data-loading-card="hidden"
-                        >
-                          <input type="hidden" name="intent" value="resend" />
-                          <input type="hidden" name="token" value={document.token} />
-                          <button type="submit" className="secondary document-mobile-action-button">
-                            재발송
-                          </button>
-                        </form>
+                        <ActionTooltip label="알림톡 재발송">
+                          <form
+                            action="/api/admin/documents"
+                            method="post"
+                            data-loading-title="알림톡을 재발송하고 있습니다"
+                            data-loading-copy="검수 상태 확인이 포함되면 평소보다 조금 더 걸릴 수 있습니다."
+                            data-loading-steps={RESEND_LOADING_STEPS}
+                            data-loading-step-interval="1200"
+                            data-loading-toast-delay="1800"
+                            data-loading-card="hidden"
+                          >
+                            <input type="hidden" name="intent" value="resend" />
+                            <input type="hidden" name="token" value={document.token} />
+                            <button
+                              type="submit"
+                              className="secondary icon-action-button document-mobile-action-button"
+                              aria-label="알림톡 재발송"
+                            >
+                              💬
+                            </button>
+                          </form>
+                        </ActionTooltip>
                       ) : null}
                     </div>
                   </article>
@@ -419,68 +419,76 @@ export default async function AdminDocumentsPage({ searchParams }) {
                         </div>
                       </td>
                       <td>
-                        <DrivePdfChip document={document} />
+                        <DrivePdfAction document={document} />
                       </td>
                       <td>
                         <div className="inline-actions">
-                          <a
-                            className="button secondary table-action-button"
-                            href={`${baseUrl}/s/${document.token}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            문서 보기
-                          </a>
+                          <ActionTooltip label="문서 보기">
+                            <a
+                              className="secondary icon-action-button table-action-button"
+                              href={`${baseUrl}/s/${document.token}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              aria-label="문서 보기"
+                            >
+                              📄
+                            </a>
+                          </ActionTooltip>
                           {!isEditDisabled ? (
-                            <ModalDialog
-                              title="발급 문서 수정"
-                              triggerLabel="문서 수정"
-                              triggerClassName="secondary table-action-button"
-                              size="wide"
-                              closeOnBackdrop={false}
-                            >
-                              <LazyAdminDocumentIssueForm
-                                mode="edit"
-                                documentToken={document.token}
-                                branchLocked={!integratedMaster}
-                                branchId={session.branch_id}
-                                branchName={document.branch_name || session.branch_name || ""}
-                              />
-                            </ModalDialog>
+                            <ActionTooltip label="문서 수정">
+                              <ModalDialog
+                                title="발급 문서 수정"
+                                triggerLabel="✏️"
+                                triggerAriaLabel="문서 수정"
+                                triggerTitle="문서 수정"
+                                triggerClassName="secondary icon-action-button table-action-button"
+                                size="wide"
+                                closeOnBackdrop={false}
+                              >
+                                <LazyAdminDocumentIssueForm
+                                  mode="edit"
+                                  documentToken={document.token}
+                                  branchLocked={!integratedMaster}
+                                  branchId={session.branch_id}
+                                  branchName={document.branch_name || session.branch_name || ""}
+                                />
+                              </ModalDialog>
+                            </ActionTooltip>
                           ) : (
-                            <span
-                              className="table-action-tooltip"
-                              data-tooltip={editDisabledReason}
-                              title={editDisabledReason}
-                              tabIndex={0}
-                            >
+                            <ActionTooltip label={editDisabledReason}>
                               <button
                                 type="button"
-                                className="secondary table-action-button"
+                                className="secondary icon-action-button table-action-button"
                                 disabled
                                 aria-label={editDisabledReason}
                               >
-                                문서 수정
+                                ✏️
                               </button>
-                            </span>
+                            </ActionTooltip>
                           )}
                           {document.notification_template_id ? (
-                            <form
-                              action="/api/admin/documents"
-                              method="post"
-                              data-loading-title="알림톡을 재발송하고 있습니다"
-                              data-loading-copy="검수 상태 확인이 포함되면 평소보다 조금 더 걸릴 수 있습니다."
-                              data-loading-steps={RESEND_LOADING_STEPS}
-                              data-loading-step-interval="1200"
-                              data-loading-toast-delay="320"
-                              data-loading-card="hidden"
-                            >
-                              <input type="hidden" name="intent" value="resend" />
-                              <input type="hidden" name="token" value={document.token} />
-                              <button type="submit" className="secondary table-action-button">
-                                재발송
-                              </button>
-                            </form>
+                            <ActionTooltip label="알림톡 재발송">
+                              <form
+                                action="/api/admin/documents"
+                                method="post"
+                                data-loading-title="알림톡을 재발송하고 있습니다"
+                                data-loading-copy="검수 상태 확인이 포함되면 평소보다 조금 더 걸릴 수 있습니다."
+                                data-loading-steps={RESEND_LOADING_STEPS}
+                                data-loading-step-interval="1200"
+                                data-loading-toast-delay="1800"
+                                data-loading-card="hidden"
+                              >
+                                <input type="hidden" name="intent" value="resend" />
+                                <input type="hidden" name="token" value={document.token} />
+                                <button
+                                  type="submit"
+                                  className="secondary icon-action-button table-action-button"
+                                  aria-label="알림톡 재발송"
+                                >
+                                  💬
+                                </button>
+                              </form>
+                            </ActionTooltip>
                           ) : null}
                         </div>
                       </td>

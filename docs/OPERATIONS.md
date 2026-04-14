@@ -23,9 +23,10 @@
 | `KAKAO_REDIRECT_URI` | 카카오 OAuth callback URL |
 | `BIZGO_API_KEY` | Bizgo API 키 |
 | `BIZGO_SENDER_KEY` | Bizgo 발신 프로필 키 |
-| `GOOGLE_DRIVE_FOLDER_ID` | 서명 완료 PDF를 업로드할 Google Drive 폴더 ID |
-| `GOOGLE_SERVICE_ACCOUNT_KEY_JSON_BASE64` | Google Drive 업로드용 서비스 계정 JSON 키를 base64로 인코딩한 값 |
-| `GOOGLE_DRIVE_IMPERSONATED_USER_EMAIL` | Google Workspace 도메인 위임 사용 시 위임 대상 사용자 이메일 |
+| `PDF_CHROME_EXECUTABLE_PATH` | PDF 다운로드 생성용 Chrome 실행 파일 경로, 기본 자동 감지 |
+| `GOOGLE_DRIVE_FOLDER_ID` | 추후 Drive 업로드 재개 시 사용할 Google Drive 폴더 ID |
+| `GOOGLE_SERVICE_ACCOUNT_KEY_JSON_BASE64` | 추후 Drive 업로드 재개 시 사용할 서비스 계정 JSON 키 base64 값 |
+| `GOOGLE_DRIVE_IMPERSONATED_USER_EMAIL` | 추후 Drive 업로드 재개 시 Google Workspace 도메인 위임 대상 사용자 이메일 |
 | `MASTER_KAKAO_ID` | 통합 마스터 카카오 ID |
 
 ## 로컬 실행
@@ -114,9 +115,15 @@ Bizgo base URL은 코드에서 `https://mars.ibapi.kr/api/comm` 으로 고정되
 3. 메시지 본문과 버튼 URL 치환값이 맞는지
 4. 버튼 링크가 운영 도메인 기준으로 열리는지
 
+## 서명 PDF 다운로드
+
+현재 서명 완료 PDF는 Google Drive에 자동 업로드하지 않는다. 어드민 문서 목록에서 서명 완료 문서의 PDF 버튼을 누르면 서버에서 PDF를 생성해 바로 다운로드한다.
+
+PDF 생성은 Chromium을 사용한다. 로컬 macOS에서는 설치된 Chrome을 자동 감지하고, 필요하면 `PDF_CHROME_EXECUTABLE_PATH`로 실행 파일 경로를 지정한다. Vercel 배포 환경에서는 서버리스 Chromium 패키지를 사용한다.
+
 ## Google Drive PDF 설정
 
-서명 완료 PDF 업로드는 서비스 계정으로 Google Drive API를 호출한다.
+Google Drive 자동 업로드는 현재 보류 상태다. 추후 재개할 때는 서비스 계정으로 Google Drive API를 호출한다.
 
 필수 설정:
 
