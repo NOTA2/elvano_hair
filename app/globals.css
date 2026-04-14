@@ -1697,6 +1697,61 @@ td {
   border-color: #f2d5cf;
 }
 
+.icon-action-button,
+.admin-shell button.icon-action-button:not(.tiptap-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--admin-ink);
+  box-shadow: none;
+  font-size: 17px;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.icon-action-button:hover,
+.admin-shell button.icon-action-button:not(.tiptap-button):hover {
+  border-color: rgba(77, 109, 150, 0.28);
+  background: #f6f9fc;
+  filter: none;
+}
+
+.icon-action-button.positive,
+.admin-shell button.icon-action-button.positive:not(.tiptap-button) {
+  color: #4d6d96;
+  background: #edf5fc;
+  border-color: #dbe8f6;
+}
+
+.icon-action-button.neutral,
+.admin-shell button.icon-action-button.neutral:not(.tiptap-button) {
+  color: #6c7785;
+  background: #f4f7fa;
+}
+
+.icon-action-button.negative,
+.admin-shell button.icon-action-button.negative:not(.tiptap-button) {
+  color: #9a4036;
+  background: #fcf1ef;
+  border-color: #f2d5cf;
+}
+
+.compact-action-tooltip,
+.compact-action-tooltip form {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .admin-stats-grid,
 .login-feature-grid {
   display: grid;
@@ -2079,27 +2134,17 @@ td {
 }
 
 .document-mobile-actions {
-  display: grid;
+  display: flex;
   gap: 8px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex-wrap: wrap;
 }
 
 .document-mobile-action-button,
 .document-mobile-view-button {
-  min-height: 36px;
-  border-radius: 12px;
-  padding-inline: 8px;
-  font-size: 13px;
-}
-
-.document-mobile-actions > a,
-.document-mobile-actions > button,
-.document-mobile-actions > .button,
-.document-mobile-actions form,
-.document-mobile-actions form button,
-.document-mobile-actions .table-action-tooltip,
-.document-mobile-actions .table-action-tooltip button {
-  width: 100%;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
 }
 
 .document-mobile-actions .table-action-tooltip {
@@ -2874,7 +2919,8 @@ td {
   align-items: center;
 }
 
-.table-action-tooltip:focus-visible {
+.table-action-tooltip:focus-visible,
+.table-action-tooltip:focus-within {
   outline: 2px solid rgba(88, 127, 164, 0.45);
   outline-offset: 4px;
   border-radius: 18px;
@@ -2920,7 +2966,9 @@ td {
 .table-action-tooltip:hover::before,
 .table-action-tooltip:hover::after,
 .table-action-tooltip:focus-visible::before,
-.table-action-tooltip:focus-visible::after {
+.table-action-tooltip:focus-visible::after,
+.table-action-tooltip:focus-within::before,
+.table-action-tooltip:focus-within::after {
   opacity: 1;
   transform: translate(-50%, 0);
 }

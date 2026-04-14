@@ -417,7 +417,7 @@ export default function AdminDocumentIssueForm({
         data-loading-copy={loadingState.copy}
         data-loading-steps={loadingStepsJson}
         data-loading-step-interval={String(loadingState.stepIntervalMs)}
-        data-loading-toast-delay="320"
+        data-loading-toast-delay="1800"
         data-loading-card="hidden"
         aria-busy={isSubmitting ? "true" : "false"}
         onSubmit={(event) => {
