@@ -9,10 +9,6 @@ import {
 } from "@/lib/bizgo";
 import { getBaseUrl } from "@/lib/config";
 import {
-  exportSignedDocumentPdfToDrive,
-  getDocumentPdfExportErrorMessage
-} from "@/lib/documentDriveExport";
-import {
   createDocument,
   getBranchById,
   getDocumentByToken,
@@ -119,53 +115,6 @@ export async function POST(request) {
 
       await updateDocumentBizgo(document.token, "failed", { message });
       return redirectBack(headerStore, { message, messageType: "error" });
-    }
-  }
-
-  if (intent === "retry_pdf_export") {
-    const token = String(formData.get("token") || "").trim();
-    const document = token ? await getDocumentByToken(token) : null;
-
-    if (!document) {
-      return redirectBack(headerStore, {
-        message: "PDF를 재생성할 문서를 찾을 수 없습니다.",
-        messageType: "error"
-      });
-    }
-
-    if (!isIntegratedMaster(session) && Number(session.branch_id) !== Number(document.branch_id)) {
-      return redirectBack(headerStore, {
-        message: "해당 문서의 PDF를 재생성할 권한이 없습니다.",
-        messageType: "error"
-      });
-    }
-
-    if (document.status !== "signed") {
-      return redirectBack(headerStore, {
-        message: "서명 완료 문서만 PDF를 생성할 수 있습니다.",
-        messageType: "error"
-      });
-    }
-
-    try {
-      const result = await exportSignedDocumentPdfToDrive(document);
-
-      if (result?.skipped) {
-        return redirectBack(headerStore, {
-          message: "Google Drive PDF 업로드 설정을 먼저 확인해야 합니다.",
-          messageType: "info"
-        });
-      }
-
-      return redirectBack(headerStore, {
-        message: "PDF를 다시 생성했습니다.",
-        messageType: "success"
-      });
-    } catch (error) {
-      return redirectBack(headerStore, {
-        message: getDocumentPdfExportErrorMessage(error),
-        messageType: "error"
-      });
     }
   }
 

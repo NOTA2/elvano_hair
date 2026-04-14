@@ -48,16 +48,6 @@ const RESEND_LOADING_STEPS = JSON.stringify([
     description: "발송 결과를 저장한 뒤 문서 목록으로 돌아갑니다."
   }
 ]);
-const PDF_RETRY_LOADING_STEPS = JSON.stringify([
-  {
-    label: "PDF를 다시 만들고 있습니다",
-    description: "서명 문서를 Google Drive에 다시 업로드하고 있습니다."
-  },
-  {
-    label: "Drive 업로드 결과를 저장하고 있습니다",
-    description: "완료되면 문서 목록으로 돌아갑니다."
-  }
-]);
 
 function statusClass(status) {
   if (status === "signed") return "signed";
@@ -81,44 +71,16 @@ function bizgoLabel(status) {
   return status === "sent" ? "발송 완료" : "미발송";
 }
 
-function drivePdfStatus(document) {
+function pdfDownloadStatus(document) {
   if (document.status !== "signed") {
     return null;
   }
 
-  if (document.drive_pdf_url) {
-    return {
-      icon: "📄",
-      label: "PDF 보기",
-      className: "positive",
-      href: document.drive_pdf_url
-    };
-  }
-
-  if (document.pdf_export_status === "failed") {
-    return {
-      icon: "⚠️",
-      label: document.pdf_export_error
-        ? `PDF 재생성: ${document.pdf_export_error}`
-        : "PDF 재생성",
-      className: "negative",
-      canRetry: true
-    };
-  }
-
-  if (document.pdf_export_status === "skipped") {
-    return {
-      icon: "⚙️",
-      label: "PDF 업로드 설정 확인",
-      className: "neutral",
-      canRetry: true
-    };
-  }
-
   return {
-    icon: "⏳",
-    label: "PDF 생성 중",
-    className: "neutral"
+    icon: "📥",
+    label: "PDF 다운로드",
+    className: "positive",
+    href: `/api/admin/documents/${document.token}/pdf`
   };
 }
 
@@ -131,7 +93,7 @@ function ActionTooltip({ label, children }) {
 }
 
 function DrivePdfAction({ document }) {
-  const status = drivePdfStatus(document);
+  const status = pdfDownloadStatus(document);
 
   if (!status) {
     return <span className="table-cell-copy">-</span>;
@@ -143,39 +105,11 @@ function DrivePdfAction({ document }) {
         <a
           className={`icon-action-button pdf-icon-action ${status.className}`}
           href={status.href}
-          target="_blank"
-          rel="noreferrer"
           aria-label={status.label}
+          download
         >
           {status.icon}
         </a>
-      </ActionTooltip>
-    );
-  }
-
-  if (status.canRetry) {
-    return (
-      <ActionTooltip label={status.label}>
-        <form
-          action="/api/admin/documents"
-          method="post"
-          data-loading-title="PDF를 다시 생성하고 있습니다"
-          data-loading-copy="Google Drive 업로드까지 다시 시도합니다."
-          data-loading-steps={PDF_RETRY_LOADING_STEPS}
-          data-loading-step-interval="1100"
-          data-loading-toast-delay="900"
-          data-loading-card="hidden"
-        >
-          <input type="hidden" name="intent" value="retry_pdf_export" />
-          <input type="hidden" name="token" value={document.token} />
-          <button
-            type="submit"
-            className={`icon-action-button pdf-icon-action ${status.className}`}
-            aria-label={status.label}
-          >
-            {status.icon}
-          </button>
-        </form>
       </ActionTooltip>
     );
   }
@@ -335,7 +269,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
                             {isExpired ? (
                               <span className="status-chip negative">기한 만료</span>
                             ) : null}
-                            {drivePdfStatus(document) ? (
+                            {pdfDownloadStatus(document) ? (
                               <DrivePdfAction document={document} />
                             ) : null}
                           </div>
