@@ -365,7 +365,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
                           rel="noreferrer"
                           aria-label="문서 보기"
                         >
-                          👁️
+                          📄
                         </a>
                       </ActionTooltip>
                       {!isEditDisabled ? (
@@ -504,7 +504,7 @@ export default async function AdminDocumentsPage({ searchParams }) {
                               rel="noreferrer"
                               aria-label="문서 보기"
                             >
-                              👁️
+                              📄
                             </a>
                           </ActionTooltip>
                           {!isEditDisabled ? (
