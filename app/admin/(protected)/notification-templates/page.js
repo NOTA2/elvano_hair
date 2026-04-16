@@ -9,6 +9,7 @@ import StatusFilterChips, {
   parseStatusFilters
 } from "@/components/StatusFilterChips";
 import { requireBranchManagerSession } from "@/lib/auth";
+import { summarizeBizgoTemplateStructure } from "@/lib/bizgo";
 import {
   countNotificationTemplates,
   listNotificationTemplatesPage
@@ -231,6 +232,9 @@ export default async function NotificationTemplatesPage({ searchParams }) {
                     </div>
                     <div className="list-row-meta">{template.template_code}</div>
                     <div className="list-row-meta">{trimPreview(template.message)}</div>
+                    <div className="list-row-meta">
+                      {summarizeBizgoTemplateStructure(template)}
+                    </div>
                   </div>
                   <div className="list-row-actions">
                     <span className={`status-chip ${lifecycleClass(template)}`}>
