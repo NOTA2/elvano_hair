@@ -4,6 +4,8 @@ import {
   isIntegratedMaster
 } from "@/lib/auth";
 import {
+  extractBizgoMsgKey,
+  getBizgoDeliveryStatusByMsgKey,
   resolveBizgoNotificationTemplateForSend,
   sendBizgoAlimtalk
 } from "@/lib/bizgo";
@@ -49,8 +51,120 @@ function redirectBack(headerStore, params = {}) {
   return Response.redirect(url.toString(), 302);
 }
 
-function toErrorMessage(error, fallback) {
+function toDebugErrorMessage(error, fallback) {
   return error instanceof Error ? error.message : fallback;
+}
+
+function isBizgoServiceError(error) {
+  const debugMessage = toDebugErrorMessage(error, "");
+
+  if (
+    error &&
+    typeof error === "object" &&
+    error.name === "BizgoApiError" &&
+    Number(error.bizgoStatus) >= 500
+  ) {
+    return true;
+  }
+
+  return /Bizgo API 실패|Bizgo 발송 실패|authCode|authResult|Internal Server Error|A500/i.test(
+    debugMessage
+  );
+}
+
+function isTechnicalSystemError(error) {
+  const debugMessage = toDebugErrorMessage(error, "");
+
+  if (isBizgoServiceError(error)) {
+    return false;
+  }
+
+  return /TypeError|ReferenceError|SyntaxError|PageNotFoundError|Cannot find module|Unexpected token|fetch failed/i.test(
+    debugMessage
+  );
+}
+
+function toPublicErrorMessage(error, fallback) {
+  const debugMessage = toDebugErrorMessage(error, fallback);
+
+  if (isBizgoServiceError(error)) {
+    return "카카오톡 알림 서비스에 문제가 생겨 요청이 지연되었을 수 있습니다. 실제로 카카오톡이 발송되었는지 먼저 확인해 주시고, 발송되지 않았다면 알림톡 재발송(💬) 버튼만 눌러 다시 보내 주세요.";
+  }
+
+  if (isTechnicalSystemError(error)) {
+    return "우리 시스템에서 요청을 처리하는 중 문제가 발생했습니다. 문제가 계속되면 개발 관리자에게 알려 주세요.";
+  }
+
+  return debugMessage;
+}
+
+function logOperationError(scope, error) {
+  console.error(scope, {
+    name: error instanceof Error ? error.name : typeof error,
+    message: toDebugErrorMessage(error, "알 수 없는 오류"),
+    bizgoStatus:
+      error && typeof error === "object" && "bizgoStatus" in error
+        ? error.bizgoStatus
+        : null,
+    bizgoPayload:
+      error && typeof error === "object" && "bizgoPayload" in error
+        ? error.bizgoPayload
+        : null
+  });
+}
+
+function readRequiredCreateFields(formData, resolvedBranchId) {
+  return {
+    branchId: Number(resolvedBranchId),
+    templateId: Number(formData.get("template_id")),
+    designerId: Number(formData.get("designer_id")),
+    notificationTemplateId: Number(formData.get("notification_template_id")),
+    documentTitle: String(formData.get("document_title") || "").trim(),
+    documentDate: String(formData.get("document_date") || "").trim(),
+    customerName: String(formData.get("customer_name") || "").trim(),
+    recipientPhone: String(formData.get("recipient_phone") || "").trim()
+  };
+}
+
+function getMissingCreateFieldLabels(requiredFields) {
+  const missingLabels = [];
+
+  if (!Number.isFinite(requiredFields.branchId) || requiredFields.branchId <= 0) {
+    missingLabels.push("지점");
+  }
+
+  if (!Number.isFinite(requiredFields.templateId) || requiredFields.templateId <= 0) {
+    missingLabels.push("문서 템플릿");
+  }
+
+  if (!Number.isFinite(requiredFields.designerId) || requiredFields.designerId <= 0) {
+    missingLabels.push("담당 디자이너");
+  }
+
+  if (
+    !Number.isFinite(requiredFields.notificationTemplateId) ||
+    requiredFields.notificationTemplateId <= 0
+  ) {
+    missingLabels.push("알림톡 템플릿");
+  }
+
+  if (!requiredFields.documentTitle) {
+    missingLabels.push("문서 제목");
+  }
+
+  if (!requiredFields.documentDate) {
+    missingLabels.push("문서 날짜");
+  }
+
+  if (!requiredFields.customerName) {
+    missingLabels.push("고객 이름");
+  }
+
+  if (!requiredFields.recipientPhone) {
+    missingLabels.push("휴대폰번호");
+  }
+
+  return missingLabels;
 }
 
 export async function POST(request) {
@@ -111,10 +225,75 @@ export async function POST(request) {
         messageType: bizgoResponse.status === "sent" ? "success" : "info"
       });
     } catch (error) {
-      const message = toErrorMessage(error, "알림톡 재발송 중 오류가 발생했습니다.");
+      logOperationError("알림톡 재발송 실패", error);
+      const debugMessage = toDebugErrorMessage(error, "알림톡 재발송 중 오류가 발생했습니다.");
+      const publicMessage = toPublicErrorMessage(
+        error,
+        "알림톡 재발송 중 오류가 발생했습니다."
+      );
 
-      await updateDocumentBizgo(document.token, "failed", { message });
-      return redirectBack(headerStore, { message, messageType: "error" });
+      await updateDocumentBizgo(document.token, "failed", {
+        message: debugMessage,
+        public_message: publicMessage
+      });
+      return redirectBack(headerStore, { message: publicMessage, messageType: "error" });
+    }
+  }
+
+  if (intent === "sync_bizgo_status") {
+    const token = String(formData.get("token") || "").trim();
+    const document = token ? await getDocumentByToken(token) : null;
+
+    if (!document || !document.notification_template_id) {
+      return redirectBack(headerStore, {
+        message: "알림톡 상태를 확인할 문서를 찾을 수 없습니다.",
+        messageType: "error"
+      });
+    }
+
+    if (!isIntegratedMaster(session) && Number(session.branch_id) !== Number(document.branch_id)) {
+      return redirectBack(headerStore, {
+        message: "해당 문서의 알림톡 상태를 확인할 권한이 없습니다.",
+        messageType: "error"
+      });
+    }
+
+    const msgKey = extractBizgoMsgKey(document.bizgo_response);
+
+    if (!msgKey) {
+      return redirectBack(headerStore, {
+        message: "발송 이력 정보가 없어 알림톡 상태를 다시 확인할 수 없습니다.",
+        messageType: "error"
+      });
+    }
+
+    try {
+      const bizgoStatus = await getBizgoDeliveryStatusByMsgKey(msgKey);
+      const mergedResponse =
+        document.bizgo_response && typeof document.bizgo_response === "object"
+          ? {
+              ...document.bizgo_response,
+              ...bizgoStatus.response
+            }
+          : bizgoStatus.response;
+
+      await updateDocumentBizgo(document.token, bizgoStatus.status, mergedResponse);
+
+      return redirectBack(headerStore, {
+        message: bizgoStatus.message,
+        messageType:
+          bizgoStatus.status === "sent"
+            ? "success"
+            : bizgoStatus.status === "requested"
+              ? "info"
+              : "error"
+      });
+    } catch (error) {
+      logOperationError("알림톡 상태 조회 실패", error);
+      return redirectBack(headerStore, {
+        message: toPublicErrorMessage(error, "알림톡 상태 조회 중 오류가 발생했습니다."),
+        messageType: "error"
+      });
     }
   }
 
@@ -244,13 +423,19 @@ export async function POST(request) {
       ? Number(session.branch_id)
       : Number(formData.get("branch_id"));
 
-  if (!resolvedBranchId) {
-    return redirectBack(headerStore);
+  const requiredFields = readRequiredCreateFields(formData, resolvedBranchId);
+  const missingFieldLabels = getMissingCreateFieldLabels(requiredFields);
+
+  if (missingFieldLabels.length > 0) {
+    return redirectBack(headerStore, {
+      message: `다음 필수 항목을 입력해야 합니다: ${missingFieldLabels.join(", ")}.`,
+      messageType: "error"
+    });
   }
 
-  const templateId = Number(formData.get("template_id"));
-  const designerId = Number(formData.get("designer_id"));
-  const requestedNotificationTemplateId = Number(formData.get("notification_template_id"));
+  const templateId = requiredFields.templateId;
+  const designerId = requiredFields.designerId;
+  const requestedNotificationTemplateId = requiredFields.notificationTemplateId;
   const notificationTemplateId =
     Number.isFinite(requestedNotificationTemplateId) && requestedNotificationTemplateId > 0
       ? requestedNotificationTemplateId
@@ -265,7 +450,10 @@ export async function POST(request) {
   ]);
 
   if (!branch || !template || !designer) {
-    return redirectBack(headerStore);
+    return redirectBack(headerStore, {
+      message: "문서 발급에 필요한 지점, 템플릿 또는 담당 디자이너 정보를 찾을 수 없습니다.",
+      messageType: "error"
+    });
   }
 
   if (!notificationTemplateId || !notificationTemplate) {
@@ -329,7 +517,8 @@ export async function POST(request) {
       notificationTemplate
     );
   } catch (error) {
-    const message = toErrorMessage(
+    logOperationError("알림톡 템플릿 상태 확인 실패", error);
+    const message = toPublicErrorMessage(
       error,
       "알림톡 템플릿 상태를 확인하지 못해 문서 발급을 중단했습니다."
     );
@@ -378,10 +567,15 @@ export async function POST(request) {
       messageType: bizgoResponse.status === "sent" ? "success" : "info"
     });
   } catch (error) {
-    const message = toErrorMessage(error, "알림톡 발송 중 오류가 발생했습니다.");
-    await updateDocumentBizgo(document.token, "failed", { message });
+    logOperationError("알림톡 발송 실패", error);
+    const debugMessage = toDebugErrorMessage(error, "알림톡 발송 중 오류가 발생했습니다.");
+    const publicMessage = toPublicErrorMessage(error, "알림톡 발송 중 오류가 발생했습니다.");
+    await updateDocumentBizgo(document.token, "failed", {
+      message: debugMessage,
+      public_message: publicMessage
+    });
     return redirectBack(headerStore, {
-      message,
+      message: publicMessage,
       messageType: "error"
     });
   }

@@ -166,6 +166,8 @@ export function SimpleEditor({
   const { height } = useWindowSize()
   const [mobileView, setMobileView] = useState("main")
   const toolbarRef = useRef(null)
+  const lastExternalContentRef = useRef(normalizeHtmlString(normalizeTemplateContent(content) || "<p></p>"))
+  const hasSyncedExternalContentRef = useRef(false)
   const initialContent = normalizeTemplateContent(content) || "<p></p>"
 
   const editor = useEditor({
@@ -231,10 +233,23 @@ export function SimpleEditor({
     }
 
     const nextContent = normalizeTemplateContent(content) || "<p></p>"
+    const normalizedNextContent = normalizeHtmlString(nextContent)
+    const shouldMoveCursorToEnd =
+      hasSyncedExternalContentRef.current &&
+      lastExternalContentRef.current !== normalizedNextContent
 
-    if (getEditorHtml(editor) !== normalizeHtmlString(nextContent)) {
+    if (getEditorHtml(editor) !== normalizedNextContent) {
       editor.commands.setContent(nextContent, false)
+
+      if (shouldMoveCursorToEnd) {
+        requestAnimationFrame(() => {
+          editor.commands.focus("end")
+        })
+      }
     }
+
+    lastExternalContentRef.current = normalizedNextContent
+    hasSyncedExternalContentRef.current = true
   }, [content, editor])
 
   return (

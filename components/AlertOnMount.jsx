@@ -3,6 +3,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+function toReadableAlertMessage(message) {
+  const normalized = String(message || "").trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (/Bizgo API 실패|Bizgo 발송 실패|authCode|authResult|Internal Server Error|A500/i.test(normalized)) {
+    return "카카오톡 알림 서비스에 문제가 생겨 요청이 지연되었을 수 있습니다. 실제로 카카오톡이 발송되었는지 먼저 확인해 주시고, 발송되지 않았다면 알림톡 재발송(💬) 버튼만 눌러 다시 보내 주세요.";
+  }
+
+  if (
+    /TypeError|ReferenceError|SyntaxError|PageNotFoundError|Cannot find module|Unexpected token|fetch failed/i.test(
+      normalized
+    )
+  ) {
+    return "우리 시스템에서 요청을 처리하는 중 문제가 발생했습니다. 문제가 계속되면 개발 관리자에게 알려 주세요.";
+  }
+
+  return normalized;
+}
+
 export default function AlertOnMount({ message, type = "error" }) {
   const dialogRef = useRef(null);
   const router = useRouter();
@@ -52,6 +74,7 @@ export default function AlertOnMount({ message, type = "error" }) {
     return null;
   }
 
+  const readableMessage = toReadableAlertMessage(message);
   const normalizedType = type === "success" || type === "info" ? type : "error";
   const title =
     normalizedType === "success"
@@ -75,7 +98,7 @@ export default function AlertOnMount({ message, type = "error" }) {
           {normalizedType === "success" ? "완료" : normalizedType === "info" ? "확인" : "안내"}
         </div>
         <div className="floating-alert-title">{title}</div>
-        <div className="floating-alert-copy">{message}</div>
+        <div className="floating-alert-copy">{readableMessage}</div>
         <div className="floating-alert-actions">
           <button type="button" onClick={closeDialog}>
             확인

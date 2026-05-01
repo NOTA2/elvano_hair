@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+const PAGE_WINDOW_SIZE = 5;
+
 function normalizeSearchParams(searchParams) {
   const params = new URLSearchParams();
 
@@ -25,12 +27,48 @@ function normalizeSearchParams(searchParams) {
   return params;
 }
 
-function buildPages(currentPage, totalPages) {
-  const pages = new Set([1, totalPages, currentPage - 1, currentPage, currentPage + 1]);
+function resolveWindowRange(currentPage, totalPages) {
+  const halfWindow = Math.floor(PAGE_WINDOW_SIZE / 2);
+  let start = Math.max(1, currentPage - halfWindow);
+  let end = start + PAGE_WINDOW_SIZE - 1;
 
-  return Array.from(pages)
-    .filter((page) => page >= 1 && page <= totalPages)
-    .sort((a, b) => a - b);
+  if (end > totalPages) {
+    end = totalPages;
+    start = Math.max(1, end - PAGE_WINDOW_SIZE + 1);
+  }
+
+  return { start, end };
+}
+
+function buildPages(currentPage, totalPages) {
+  if (totalPages <= 0) {
+    return [];
+  }
+
+  const items = [];
+  const { start, end } = resolveWindowRange(currentPage, totalPages);
+
+  if (start > 1) {
+    items.push({ type: "page", page: 1 });
+
+    if (start > 2) {
+      items.push({ type: "gap", key: `start-gap-${start}` });
+    }
+  }
+
+  for (let page = start; page <= end; page += 1) {
+    items.push({ type: "page", page });
+  }
+
+  if (end < totalPages) {
+    if (end < totalPages - 1) {
+      items.push({ type: "gap", key: `end-gap-${end}` });
+    }
+
+    items.push({ type: "page", page: totalPages });
+  }
+
+  return items;
 }
 
 export default function PaginationControls({
@@ -66,15 +104,24 @@ export default function PaginationControls({
       </Link>
 
       <div className="pagination-pages">
-        {pages.map((page) => (
-          <Link
-            key={page}
-            href={hrefFor(page)}
-            className={`pagination-link ${page === currentPage ? "active" : ""}`}
-          >
-            {page}
-          </Link>
-        ))}
+        {pages.map((item) =>
+          item.type === "gap" ? (
+            <span key={item.key} className="pagination-gap" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+          ) : (
+            <Link
+              key={item.page}
+              href={hrefFor(item.page)}
+              className={`pagination-link ${item.page === currentPage ? "active" : ""}`}
+              aria-current={item.page === currentPage ? "page" : undefined}
+            >
+              {item.page}
+            </Link>
+          )
+        )}
       </div>
 
       <Link
